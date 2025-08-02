@@ -1,4 +1,5 @@
 use raylib::prelude::*;
+use raylib::consts::{GamepadAxis, GamepadButton};
 
 pub struct Player {
     pub pos: Vector2, // Posición del jugador
@@ -76,8 +77,8 @@ impl Player {
         const ROTATION_SPEED: f32 = std::f32::consts::PI / 32.0;
 
         // Usar el joystick para mover el jugador
-        let move_x = window.get_gamepad_axis(GamepadAxis::GamepadAxisLeftX);
-        let move_y = window.get_gamepad_axis(GamepadAxis::GamepadAxisLeftY);
+        let move_x = window.get_gamepad_axis_movement(0, GamepadAxis::GAMEPAD_AXIS_LEFT_X); // Updated to correct method
+        let move_y = window.get_gamepad_axis_movement(0, GamepadAxis::GAMEPAD_AXIS_LEFT_Y); // Updated to correct method
 
         if move_x != 0.0 {
             self.pos.x += move_x * MOVE_SPEED;
@@ -87,10 +88,10 @@ impl Player {
         }
 
         // Usar los botones para rotar el jugador
-        if window.is_gamepad_button_pressed(GamepadButton::GamepadButtonLeftBumper) {
+        if window.is_gamepad_button_pressed(0, GamepadButton::GAMEPAD_BUTTON_LEFT_THUMB) { // Updated to valid variant
             self.turn_left(ROTATION_SPEED);
         }
-        if window.is_gamepad_button_pressed(GamepadButton::GamepadButtonRightBumper) {
+        if window.is_gamepad_button_pressed(0, GamepadButton::GAMEPAD_BUTTON_RIGHT_THUMB) { // Updated to valid variant
             self.turn_right(ROTATION_SPEED);
         }
     }

@@ -33,7 +33,14 @@ impl Framebuffer {
         );
     }
 
-    pub fn set_pixel(&mut self, x: u32, y: u32) {
+    pub fn set_pixel(&mut self, x: u32, y: u32, color: Color) {
+        if x < self.width && y < self.height {
+            Image::draw_pixel(&mut self.color_buffer, x as i32, y as i32, color);
+        }
+    }
+
+    // Overloaded version that uses current_color
+    pub fn set_pixel_current(&mut self, x: u32, y: u32) {
         if x < self.width && y < self.height {
             Image::draw_pixel(&mut self.color_buffer, x as i32, y as i32, self.current_color);
         }
@@ -60,5 +67,12 @@ impl Framebuffer {
 
     pub fn set_current_color(&mut self, color: Color) {
         self.current_color = color;
+    }
+
+    // Add the missing to_image method
+    pub fn to_image(&self) -> Image {
+        // Since color_buffer is already an Image, we can clone it
+        // Note: This might need adjustment based on Raylib version
+        self.color_buffer.clone()
     }
 }
