@@ -888,6 +888,7 @@ dependencies = [
  "nalgebra",
  "raylib",
  "rodio",
+ "serde_json",
 ]
 
 [[package]]

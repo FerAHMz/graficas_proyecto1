@@ -1,0 +1,24 @@
+# Archivos de compilación de Rust
+/target/
+**/target/
+
+# Archivos del sistema
+.DS_Store
+.vscode/
+.idea/
+
+# Archivos temporales
+*.tmp
+*.swp
+*~
+
+# Archivos de audio grandes (para futuras versiones)
+*.wav
+*.ogg
+*.mp3
+
+# Archivos de backup
+*.bak
+
+# Archivos de logs
+*.log

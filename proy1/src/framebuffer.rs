@@ -26,11 +26,8 @@ impl Framebuffer {
     }
 
     pub fn clear(&mut self) {
-        self.color_buffer = Image::gen_image_color(
-            self.width.try_into().unwrap(),
-            self.height.try_into().unwrap(),
-            self.background_color,
-        );
+        // Usar la API oficial de Raylib en lugar del método unsafe
+        Image::clear_background(&mut self.color_buffer, self.background_color);
     }
 
     pub fn set_pixel(&mut self, x: u32, y: u32, color: Color) {
@@ -74,5 +71,37 @@ impl Framebuffer {
         // Since color_buffer is already an Image, we can clone it
         // Note: This might need adjustment based on Raylib version
         self.color_buffer.clone()
+    }
+
+    // Método optimizado para dibujar el framebuffer
+    pub fn draw_to_screen(&mut self, d: &mut RaylibDrawHandle, thread: &RaylibThread) {
+        // Intentar crear una textura desde la imagen
+        let texture = d.load_texture_from_image(thread, &self.color_buffer);
+        
+        match texture {
+            Ok(tex) => {
+                d.draw_texture(&tex, 0, 0, Color::WHITE);
+            },
+            Err(_e) => {
+                // Fallback: dibujar píxeles directamente (más lento pero funcional)
+                self.draw_pixels_directly(d);
+            }
+        }
+    }
+    
+    // Método de fallback para dibujar píxeles directamente
+    fn draw_pixels_directly(&self, d: &mut RaylibDrawHandle) {
+        // Dibujar el contenido del framebuffer píxel por píxel (solo como último recurso)
+        for y in (0..self.height).step_by(1) {
+            for x in (0..self.width).step_by(1) {
+                let color = self.get_color(x, y);
+                // Solo dibujar píxeles que no sean el color de fondo para optimizar
+                if color.r != self.background_color.r || 
+                   color.g != self.background_color.g || 
+                   color.b != self.background_color.b {
+                    d.draw_pixel(x as i32, y as i32, color);
+                }
+            }
+        }
     }
 }
