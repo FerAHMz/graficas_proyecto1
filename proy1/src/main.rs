@@ -51,6 +51,7 @@ fn main() {
     let mut frame_count = 0;
     let mut fps_timer = Instant::now();
     let mut current_fps = 0.0;
+    let target_fps = 60.0; // Target FPS para comparison
     
     // Game variables - commented out for now since we need to implement these modules
     // let mut show_2d = false;
@@ -63,9 +64,9 @@ fn main() {
 
     // Main game loop
     while !rl.window_should_close() {
-        // Update FPS
+        // Update FPS (update every 0.5 seconds for more responsive display)
         frame_count += 1;
-        if fps_timer.elapsed().as_secs_f32() >= 1.0 {
+        if fps_timer.elapsed().as_secs_f32() >= 0.5 {
             current_fps = frame_count as f32 / fps_timer.elapsed().as_secs_f32();
             frame_count = 0;
             fps_timer = Instant::now();
@@ -89,8 +90,8 @@ fn main() {
             render_2d(&mut framebuffer, &player, &maze);
         }
 
-        // 5. swap buffers
-        framebuffer.swap_buffers(&mut rl, &thread);
+        // 5. swap buffers with FPS display
+        framebuffer.swap_buffers_with_fps(&mut rl, &thread, current_fps);
 
         thread::sleep(Duration::from_millis(16));
     }

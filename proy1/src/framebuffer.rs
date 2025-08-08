@@ -58,4 +58,41 @@ impl Framebuffer {
             renderer.draw_texture(&texture, 0, 0, Color::WHITE);
         }
     }
+
+    pub fn swap_buffers_with_fps(
+        &self,
+        window: &mut RaylibHandle,
+        raylib_thread: &RaylibThread,
+        fps: f32,
+    ) {
+        if let Ok(texture) = window.load_texture_from_image(raylib_thread, &self.color_buffer) {
+            let mut renderer = window.begin_drawing(raylib_thread);
+            renderer.clear_background(Color::BLACK);
+            renderer.draw_texture(&texture, 0, 0, Color::WHITE);
+            
+            // Draw FPS counter with color coding
+            let fps_color = if fps >= 15.0 { 
+                Color::GREEN 
+            } else if fps >= 10.0 { 
+                Color::YELLOW 
+            } else { 
+                Color::RED 
+            };
+            let fps_text = format!("FPS: {:.1}", fps);
+            renderer.draw_text(&fps_text, 10, 10, 20, fps_color);
+            
+            // Draw performance status
+            let status = if fps >= 15.0 { 
+                "GOOD" 
+            } else if fps >= 10.0 { 
+                "OK" 
+            } else { 
+                "LOW" 
+            };
+            renderer.draw_text(&format!("Performance: {}", status), 10, 35, 16, fps_color);
+            
+            // Draw controls info
+            renderer.draw_text("M: Toggle 2D/3D | WASD/Arrows: Move", 10, self.height as i32 - 30, 16, Color::WHITE);
+        }
+    }
 }
