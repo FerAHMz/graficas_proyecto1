@@ -1,5 +1,4 @@
 use raylib::prelude::*;
-use std::convert::TryInto;
 
 pub struct Framebuffer {
     pub width: u32,
@@ -10,52 +9,31 @@ pub struct Framebuffer {
 }
 
 impl Framebuffer {
-    pub fn new(width: u32, height: u32, background_color: Color) -> Self {
-        let color_buffer = Image::gen_image_color(
-            width.try_into().unwrap(),
-            height.try_into().unwrap(),
-            background_color,
-        );
+    pub fn new(width: u32, height: u32) -> Self {
+        let color_buffer = Image::gen_image_color(width as i32, height as i32, Color::BLACK);
         Framebuffer {
             width,
             height,
             color_buffer,
-            background_color,
+            background_color: Color::BLACK,
             current_color: Color::WHITE,
         }
     }
 
     pub fn clear(&mut self) {
-        // Usar la API oficial de Raylib en lugar del método unsafe
-        Image::clear_background(&mut self.color_buffer, self.background_color);
+        self.color_buffer = Image::gen_image_color(self.width as i32, self.height as i32, self.background_color);
     }
 
-    pub fn set_pixel(&mut self, x: u32, y: u32, color: Color) {
+    pub fn set_pixel(&mut self, x: u32, y: u32) {
         if x < self.width && y < self.height {
-            Image::draw_pixel(&mut self.color_buffer, x as i32, y as i32, color);
+            self.color_buffer.draw_pixel(x as i32, y as i32, self.current_color);
         }
     }
 
-    // Overloaded version that uses current_color
-    pub fn set_pixel_current(&mut self, x: u32, y: u32) {
+    pub fn set_pixel_with_color(&mut self, x: u32, y: u32, color: Color) {
         if x < self.width && y < self.height {
-            Image::draw_pixel(&mut self.color_buffer, x as i32, y as i32, self.current_color);
+            self.color_buffer.draw_pixel(x as i32, y as i32, color);
         }
-    }
-
-    pub fn get_color(&self, x: u32, y: u32) -> Color {
-        // Verificar que las coordenadas estén dentro de los límites
-        if x < self.width && y < self.height {
-            let index = ((y * self.width + x) * 4) as usize;
-            let data = unsafe { std::slice::from_raw_parts(self.color_buffer.data as *const u8, self.color_buffer.width as usize * self.color_buffer.height as usize * 4) };
-
-            // Devolver el color si el índice es válido
-            if index + 3 < data.len() {
-                return Color::new(data[index], data[index + 1], data[index + 2], data[index + 3]);
-            }
-        }
-
-        self.background_color // Devolver el color de fondo si fuera una coordenada fuera de límites
     }
 
     pub fn set_background_color(&mut self, color: Color) {
@@ -66,42 +44,18 @@ impl Framebuffer {
         self.current_color = color;
     }
 
-    // Add the missing to_image method
-    pub fn to_image(&self) -> Image {
-        // Since color_buffer is already an Image, we can clone it
-        // Note: This might need adjustment based on Raylib version
-        self.color_buffer.clone()
+    pub fn _render_to_file(&self, file_path: &str) {
+        self.color_buffer.export_image(file_path);
     }
 
-    // Método optimizado para dibujar el framebuffer
-    pub fn draw_to_screen(&mut self, d: &mut RaylibDrawHandle, thread: &RaylibThread) {
-        // Intentar crear una textura desde la imagen
-        let texture = d.load_texture_from_image(thread, &self.color_buffer);
-        
-        match texture {
-            Ok(tex) => {
-                d.draw_texture(&tex, 0, 0, Color::WHITE);
-            },
-            Err(_e) => {
-                // Fallback: dibujar píxeles directamente (más lento pero funcional)
-                self.draw_pixels_directly(d);
-            }
-        }
-    }
-    
-    // Método de fallback para dibujar píxeles directamente
-    fn draw_pixels_directly(&self, d: &mut RaylibDrawHandle) {
-        // Dibujar el contenido del framebuffer píxel por píxel (solo como último recurso)
-        for y in (0..self.height).step_by(1) {
-            for x in (0..self.width).step_by(1) {
-                let color = self.get_color(x, y);
-                // Solo dibujar píxeles que no sean el color de fondo para optimizar
-                if color.r != self.background_color.r || 
-                   color.g != self.background_color.g || 
-                   color.b != self.background_color.b {
-                    d.draw_pixel(x as i32, y as i32, color);
-                }
-            }
+    pub fn swap_buffers(
+        &self,
+        window: &mut RaylibHandle,
+        raylib_thread: &RaylibThread,
+    ) {
+        if let Ok(texture) = window.load_texture_from_image(raylib_thread, &self.color_buffer) {
+            let mut renderer = window.begin_drawing(raylib_thread);
+            renderer.draw_texture(&texture, 0, 0, Color::WHITE);
         }
     }
 }

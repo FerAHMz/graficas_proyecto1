@@ -3,63 +3,64 @@ use std::f32::consts::PI;
 
 pub struct Player {
     pub pos: Vector2,
-    pub angle: f32,
-    pub fov: f32,
-    pub speed: f32,
-    pub rotation_speed: f32,
+    pub a: f32,
+    pub fov: f32, // field of view
 }
 
 impl Player {
-    pub fn new(pos: Vector2, angle: f32, fov: f32) -> Self {
+    pub fn new(pos: Vector2, a: f32, fov: f32) -> Self {
         Player {
             pos,
-            angle,
+            a,
             fov,
-            speed: 100.0,
-            rotation_speed: 1.0,
         }
+    }
+}
+
+pub fn process_events(player: &mut Player, rl: &RaylibHandle, maze: &Vec<Vec<char>>) {
+    const MOVE_SPEED: f32 = 3.0;
+    const ROTATION_SPEED: f32 = PI / 30.0;
+    const BLOCK_SIZE: f32 = 50.0;
+
+    // Rotation doesn't need collision detection
+    if rl.is_key_down(KeyboardKey::KEY_LEFT) || rl.is_key_down(KeyboardKey::KEY_A) {
+        player.a += ROTATION_SPEED;
+    }
+    if rl.is_key_down(KeyboardKey::KEY_RIGHT) || rl.is_key_down(KeyboardKey::KEY_D) {
+        player.a -= ROTATION_SPEED;
     }
 
-    pub fn update_keyboard(&mut self, rl: &mut RaylibHandle) {
-        let dt = rl.get_frame_time();
+    // Movement with collision detection
+    if rl.is_key_down(KeyboardKey::KEY_DOWN) || rl.is_key_down(KeyboardKey::KEY_S) {
+        let new_x = player.pos.x - MOVE_SPEED * player.a.cos();
+        let new_y = player.pos.y - MOVE_SPEED * player.a.sin();
         
-        // Movimiento hacia adelante/atrás
-        if rl.is_key_down(KeyboardKey::KEY_W) || rl.is_key_down(KeyboardKey::KEY_UP) {
-            self.pos.x += self.angle.cos() * self.speed * dt;
-            self.pos.y += self.angle.sin() * self.speed * dt;
+        if is_position_valid(new_x, new_y, maze, BLOCK_SIZE) {
+            player.pos.x = new_x;
+            player.pos.y = new_y;
         }
-        if rl.is_key_down(KeyboardKey::KEY_S) || rl.is_key_down(KeyboardKey::KEY_DOWN) {
-            self.pos.x -= self.angle.cos() * self.speed * dt;
-            self.pos.y -= self.angle.sin() * self.speed * dt;
-        }
+    }
+    if rl.is_key_down(KeyboardKey::KEY_UP) || rl.is_key_down(KeyboardKey::KEY_W) {
+        let new_x = player.pos.x + MOVE_SPEED * player.a.cos();
+        let new_y = player.pos.y + MOVE_SPEED * player.a.sin();
         
-        // Rotación con teclado
-        if rl.is_key_down(KeyboardKey::KEY_A) || rl.is_key_down(KeyboardKey::KEY_LEFT) {
-            self.angle -= self.rotation_speed * dt;
+        if is_position_valid(new_x, new_y, maze, BLOCK_SIZE) {
+            player.pos.x = new_x;
+            player.pos.y = new_y;
         }
-        if rl.is_key_down(KeyboardKey::KEY_D) || rl.is_key_down(KeyboardKey::KEY_RIGHT) {
-            self.angle += self.rotation_speed * dt;
-        }
-        
-        // Normalizar ángulo
-        if self.angle < 0.0 {
-            self.angle += 2.0 * PI;
-        }
-        if self.angle >= 2.0 * PI {
-            self.angle -= 2.0 * PI;
-        }
+    }
+}
+
+fn is_position_valid(x: f32, y: f32, maze: &Vec<Vec<char>>, block_size: f32) -> bool {
+    // Convert world coordinates to maze coordinates
+    let maze_x = (x / block_size) as usize;
+    let maze_y = (y / block_size) as usize;
+    
+    // Check bounds
+    if maze_y >= maze.len() || maze_x >= maze[0].len() {
+        return false;
     }
     
-    pub fn update_mouse(&mut self, rl: &mut RaylibHandle) {
-        let mouse_delta = rl.get_mouse_delta();
-        self.angle += mouse_delta.x * 0.001; // Sensibilidad del mouse
-        
-        // Normalizar ángulo
-        if self.angle < 0.0 {
-            self.angle += 2.0 * PI;
-        }
-        if self.angle >= 2.0 * PI {
-            self.angle -= 2.0 * PI;
-        }
-    }
+    // Check if the cell is empty (walkable)
+    maze[maze_y][maze_x] == ' ' || maze[maze_y][maze_x] == 'g'
 }

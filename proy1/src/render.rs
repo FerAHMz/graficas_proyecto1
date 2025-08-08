@@ -2,168 +2,207 @@ use raylib::prelude::*;
 use crate::framebuffer::Framebuffer;
 use crate::player::Player;
 use crate::textures::TextureManager;
+use crate::caster::{cast_ray, Intersect};
+
+fn cell_to_color(cell: char) -> Color {
+    match cell {
+        '+' => Color::BROWN,
+        '-' => Color::GRAY,
+        '|' => Color::DARKGRAY,
+        'g' => Color::GOLD,
+        _ => Color::WHITE,
+    }
+}
+
+fn draw_cell(
+    framebuffer: &mut Framebuffer,
+    xo: usize,
+    yo: usize,
+    block_size: usize,
+    cell: char,
+) {
+    if cell == ' ' {
+        return;
+    }
+    let color = cell_to_color(cell);
+    framebuffer.set_current_color(color);
+
+    for x in xo..xo + block_size {
+        for y in yo..yo + block_size {
+            framebuffer.set_pixel(x as u32, y as u32);
+        }
+    }
+}
 
 pub fn render_2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>>) {
-    let scale = 8;
+    let block_size = 10;
     
-    // Dibujar el mapa
-    for (y, row) in maze.iter().enumerate() {
-        for (x, &cell) in row.iter().enumerate() {
-            let color = match cell {
-                '+' => Color::BROWN,        // Esquinas - marrón
-                '-' => Color::GRAY,         // Paredes horizontales - gris
-                '|' => Color::DARKGRAY,     // Paredes verticales - gris oscuro
-                'p' => Color::BLUE,         // Jugador - azul
-                'g' => Color::GOLD,         // Meta - dorado
-                _ => Color::GREEN,          // Espacios libres - verde (césped)
-            };
-            
-            for dy in 0..scale {
-                for dx in 0..scale {
-                    let pixel_x = (x * scale + dx) as u32;
-                    let pixel_y = (y * scale + dy) as u32;
-                    
-                    if pixel_x < framebuffer.width && pixel_y < framebuffer.height {
-                        framebuffer.set_pixel(pixel_x, pixel_y, color);
-                    }
+    // Draw the maze
+    for (row_index, row) in maze.iter().enumerate() {
+        for (col_index, &cell) in row.iter().enumerate() {
+            let xo = col_index * block_size;
+            let yo = row_index * block_size;
+            draw_cell(framebuffer, xo, yo, block_size, cell);
+        }
+    }
+
+    framebuffer.set_current_color(Color::RED);
+
+    // Draw player position - make it more visible
+    let player_x = (player.pos.x / 50.0 * block_size as f32) as u32;
+    let player_y = (player.pos.y / 50.0 * block_size as f32) as u32;
+    
+    // Draw a larger circle for the player
+    let player_size = 4;
+    for dy in 0..player_size * 2 {
+        for dx in 0..player_size * 2 {
+            let px = player_x.saturating_sub(player_size as u32).saturating_add(dx);
+            let py = player_y.saturating_sub(player_size as u32).saturating_add(dy);
+            if px < framebuffer.width && py < framebuffer.height {
+                // Draw a circle pattern
+                let center_x = player_size;
+                let center_y = player_size;
+                let distance = ((dx as i32 - center_x as i32).pow(2) + (dy as i32 - center_y as i32).pow(2)) as f32;
+                if distance <= (player_size as f32).powi(2) {
+                    framebuffer.set_pixel(px, py);
                 }
             }
         }
     }
     
-    // Dibujar jugador como un círculo rojo
-    let player_x = (player.pos.x / 50.0 * scale as f32) as i32;
-    let player_y = (player.pos.y / 50.0 * scale as f32) as i32;
+    // Draw direction indicator
+    framebuffer.set_current_color(Color::YELLOW);
+    let dir_length = 15.0;
+    let end_x = player_x as f32 + player.a.cos() * dir_length * block_size as f32 / 50.0;
+    let end_y = player_y as f32 + player.a.sin() * dir_length * block_size as f32 / 50.0;
     
-    for dy in -2..=2 {
-        for dx in -2..=2 {
-            if dx*dx + dy*dy <= 4 { // Círculo aproximado
-                let px = (player_x + dx) as u32;
-                let py = (player_y + dy) as u32;
-                if px < framebuffer.width && py < framebuffer.height {
-                    framebuffer.set_pixel(px, py, Color::RED);
-                }
-            }
+    // Simple line drawing for direction
+    let steps = 10;
+    for i in 0..steps {
+        let t = i as f32 / steps as f32;
+        let x = (player_x as f32 + t * (end_x - player_x as f32)) as u32;
+        let y = (player_y as f32 + t * (end_y - player_y as f32)) as u32;
+        if x < framebuffer.width && y < framebuffer.height {
+            framebuffer.set_pixel(x, y);
         }
     }
-    
-    // Dibujar dirección del jugador
-    let end_x = player_x + (player.angle.cos() * 15.0) as i32;
-    let end_y = player_y + (player.angle.sin() * 15.0) as i32;
-    draw_line_in_framebuffer(framebuffer, player_x, player_y, end_x, end_y, Color::YELLOW);
+
+    framebuffer.set_current_color(Color::WHITESMOKE);
+
+    // Create a scaled player for raycasting in 2D view
+    let scaled_player_x = player.pos.x / 50.0 * block_size as f32;
+    let scaled_player_y = player.pos.y / 50.0 * block_size as f32;
+    let scaled_player = Player {
+        pos: Vector2::new(scaled_player_x, scaled_player_y),
+        a: player.a,
+        fov: player.fov,
+    };
+
+    // draw what the player sees with scaled coordinates
+    let num_rays = 10;
+    for i in 0..num_rays {
+        let current_ray = i as f32 / num_rays as f32;
+        let a = scaled_player.a - (scaled_player.fov / 2.0) + (scaled_player.fov * current_ray);
+        cast_ray_2d(framebuffer, &maze, &scaled_player, a, block_size);
+    }
+}
+
+// Special raycasting function for 2D view with scaled coordinates
+fn cast_ray_2d(
+    framebuffer: &mut Framebuffer,
+    maze: &Vec<Vec<char>>,
+    player: &Player,
+    a: f32,
+    block_size: usize,
+) {
+    let mut d = 0.0;
+    let max_distance = 100.0; // Limit ray length for 2D view
+
+    framebuffer.set_current_color(Color::WHITESMOKE);
+
+    loop {
+        let cos = d * a.cos();
+        let sin = d * a.sin();
+        let x = player.pos.x + cos;
+        let y = player.pos.y + sin;
+
+        let i = (x / block_size as f32) as usize;
+        let j = (y / block_size as f32) as usize;
+
+        if j >= maze.len() || i >= maze[0].len() || d > max_distance {
+            break;
+        }
+
+        if maze[j][i] != ' ' && maze[j][i] != 'g' {
+            break;
+        }
+
+        if x >= 0.0 && y >= 0.0 && (x as u32) < framebuffer.width && (y as u32) < framebuffer.height {
+            framebuffer.set_pixel(x as u32, y as u32);
+        }
+        
+        d += 0.5; // Smaller increment for smoother lines in 2D
+    }
 }
 
 pub fn render_3d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>>, _texture_manager: &TextureManager) {
-    let width = framebuffer.width as f32;
-    let height = framebuffer.height as f32;
-    let num_rays = width as usize;
-    
+    let num_rays = framebuffer.width;
+    let hh = framebuffer.height as f32 / 2.0;  // precalculated half height
+
+    framebuffer.set_current_color(Color::WHITESMOKE);
+
     for i in 0..num_rays {
-        let current_ray = i as f32 / width;
-        let ray_angle = player.angle - player.fov / 2.0 + player.fov * current_ray;
+        let current_ray = i as f32 / num_rays as f32;
+        let a = player.a - (player.fov / 2.0) + (player.fov * current_ray);
+        let intersect = cast_ray(framebuffer, &maze, &player, a, 50, false);
+
+        // Calculate the height of the stake
+        let distance_to_wall = intersect.distance;
+        let distance_to_projection_plane = 70.0;
+        let stake_height = (hh / distance_to_wall) * distance_to_projection_plane;
+
+        // Calculate the position to draw the stake
+        let stake_top = (hh - (stake_height / 2.0)) as usize;
+        let stake_bottom = (hh + (stake_height / 2.0)) as usize;
+
+        // Set color based on wall type
+        let wall_color = match intersect.impact {
+            '+' => Color::BROWN,
+            '-' => Color::GRAY,
+            '|' => Color::DARKGRAY,
+            _ => Color::WHITE,
+        };
+
+        // Apply distance shading
+        let intensity = 1.0 / (1.0 + distance_to_wall * distance_to_wall * 0.0001);
+        let intensity = intensity.min(1.0).max(0.1);
         
-        let (distance, wall_type) = cast_ray_with_type(player.pos, ray_angle, maze);
-        
-        // Corregir distorsión de ojo de pez
-        let corrected_distance = distance * (ray_angle - player.angle).cos();
-        
-        // Calcular altura de la pared
-        let distance_to_plane = (width / 2.0) / (player.fov / 2.0).tan();
-        let wall_height = (50.0 / corrected_distance.max(1.0)) * distance_to_plane;
-        let wall_top = ((height / 2.0) - (wall_height / 2.0)).max(0.0);
-        let wall_bottom = ((height / 2.0) + (wall_height / 2.0)).min(height);
-        
-        // Dibujar columna completa
-        for y in 0..(height as u32) {
-            let color = if (y as f32) < wall_top {
-                // Cielo
-                Color::new(135, 206, 235, 255) // Azul cielo
-            } else if (y as f32) < wall_bottom {
-                // Pared con colores según el tipo
-                let base_color = match wall_type {
-                    '+' => Color::new(139, 69, 19, 255),   // Marrón para esquinas
-                    '-' => Color::new(105, 105, 105, 255), // Gris para horizontales
-                    '|' => Color::new(169, 169, 169, 255), // Gris claro para verticales
-                    _ => Color::GRAY,
-                };
-                
-                // Aplicar sombreado basado en la distancia
-                let intensity = 1.0 / (1.0 + corrected_distance * corrected_distance * 0.0005);
-                let intensity = intensity.min(1.0).max(0.1);
-                
-                Color::new(
-                    (base_color.r as f32 * intensity) as u8,
-                    (base_color.g as f32 * intensity) as u8,
-                    (base_color.b as f32 * intensity) as u8,
-                    255
-                )
-            } else {
-                // Suelo
-                Color::new(34, 139, 34, 255) // Verde césped
-            };
-            
-            framebuffer.set_pixel(i as u32, y, color);
+        let shaded_color = Color::new(
+            (wall_color.r as f32 * intensity) as u8,
+            (wall_color.g as f32 * intensity) as u8,
+            (wall_color.b as f32 * intensity) as u8,
+            255
+        );
+
+        framebuffer.set_current_color(shaded_color);
+
+        // Draw the wall column
+        for y in stake_top..stake_bottom.min(framebuffer.height as usize) {
+            framebuffer.set_pixel(i, y as u32);
+        }
+
+        // Draw sky
+        framebuffer.set_current_color(Color::new(135, 206, 235, 255)); // Sky blue
+        for y in 0..stake_top {
+            framebuffer.set_pixel(i, y as u32);
+        }
+
+        // Draw floor
+        framebuffer.set_current_color(Color::new(34, 139, 34, 255)); // Green grass
+        for y in stake_bottom..framebuffer.height as usize {
+            framebuffer.set_pixel(i, y as u32);
         }
     }
 }
 
-fn cast_ray_with_type(start: Vector2, angle: f32, maze: &Vec<Vec<char>>) -> (f32, char) {
-    let mut current_pos = start;
-    let step_size = 0.5;
-    let dx = angle.cos() * step_size;
-    let dy = angle.sin() * step_size;
-    
-    for _ in 0..2000 { // Más pasos para mayor precisión
-        current_pos.x += dx;
-        current_pos.y += dy;
-        
-        // Convertir posición a coordenadas del mapa
-        let map_x = (current_pos.x / 50.0) as usize;
-        let map_y = (current_pos.y / 50.0) as usize;
-        
-        // Verificar límites
-        if map_y >= maze.len() || map_x >= maze[0].len() {
-            return (1000.0, '+');
-        }
-        
-        // Verificar si golpeamos una pared
-        let cell = maze[map_y][map_x];
-        if cell == '+' || cell == '-' || cell == '|' {
-            let distance = ((current_pos.x - start.x).powi(2) + (current_pos.y - start.y).powi(2)).sqrt();
-            return (distance, cell);
-        }
-    }
-    
-    (1000.0, '+') // Si no golpeamos nada, devolver distancia máxima
-}
 
-fn draw_line_in_framebuffer(framebuffer: &mut Framebuffer, x0: i32, y0: i32, x1: i32, y1: i32, color: Color) {
-    let dx = (x1 - x0).abs();
-    let dy = (y1 - y0).abs();
-    let sx = if x0 < x1 { 1 } else { -1 };
-    let sy = if y0 < y1 { 1 } else { -1 };
-    let mut err = dx - dy;
-    
-    let mut x = x0;
-    let mut y = y0;
-    
-    loop {
-        if x >= 0 && x < framebuffer.width as i32 && y >= 0 && y < framebuffer.height as i32 {
-            framebuffer.set_pixel(x as u32, y as u32, color);
-        }
-        
-        if x == x1 && y == y1 {
-            break;
-        }
-        
-        let e2 = 2 * err;
-        if e2 > -dy {
-            err -= dy;
-            x += sx;
-        }
-        if e2 < dx {
-            err += dx;
-            y += sy;
-        }
-    }
-}
