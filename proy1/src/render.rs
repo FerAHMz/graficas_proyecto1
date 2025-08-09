@@ -52,7 +52,8 @@ fn draw_cell(
 }
 
 pub fn render_2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>>) {
-    let block_size = 10;
+    let block_size = 32; // 2D display block size (8x6 maze = 256x192 pixels) 
+    let world_block_size = 20; // Size used in the world coordinates
     
     // Draw the maze
     for (row_index, row) in maze.iter().enumerate() {
@@ -63,18 +64,22 @@ pub fn render_2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<
         }
     }
 
+    // Scale player position to 2D view coordinates
+    let scaled_player_x = player.pos.x / world_block_size as f32 * block_size as f32;
+    let scaled_player_y = player.pos.y / world_block_size as f32 * block_size as f32;
+
     framebuffer.set_current_color(Color::RED);
 
     // Draw player position - make it more visible
-    let player_x = (player.pos.x / 50.0 * block_size as f32) as u32;
-    let player_y = (player.pos.y / 50.0 * block_size as f32) as u32;
+    let player_x = scaled_player_x as u32;
+    let player_y = scaled_player_y as u32;
     
-    // Draw a larger circle for the player
-    let player_size = 4;
+    // Draw a larger circle for the player (proportional to new block size)
+    let player_size = (block_size / 10).max(4); // Scale player size with block size
     for dy in 0..player_size * 2 {
         for dx in 0..player_size * 2 {
-            let px = player_x.saturating_sub(player_size as u32).saturating_add(dx);
-            let py = player_y.saturating_sub(player_size as u32).saturating_add(dy);
+            let px = player_x.saturating_sub(player_size as u32).saturating_add(dx as u32);
+            let py = player_y.saturating_sub(player_size as u32).saturating_add(dy as u32);
             if px < framebuffer.width && py < framebuffer.height {
                 // Draw a circle pattern
                 let center_x = player_size;
@@ -89,9 +94,9 @@ pub fn render_2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<
     
     // Draw direction indicator
     framebuffer.set_current_color(Color::YELLOW);
-    let dir_length = 15.0;
-    let end_x = player_x as f32 + player.a.cos() * dir_length * block_size as f32 / 50.0;
-    let end_y = player_y as f32 + player.a.sin() * dir_length * block_size as f32 / 50.0;
+    let dir_length = (block_size as f32 * 0.4).max(20.0); // Scale direction length with block size
+    let end_x = player_x as f32 + player.a.cos() * dir_length;
+    let end_y = player_y as f32 + player.a.sin() * dir_length;
     
     // Simple line drawing for direction
     let steps = 10;
@@ -107,8 +112,6 @@ pub fn render_2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<
     framebuffer.set_current_color(Color::WHITESMOKE);
 
     // Create a scaled player for raycasting in 2D view
-    let scaled_player_x = player.pos.x / 50.0 * block_size as f32;
-    let scaled_player_y = player.pos.y / 50.0 * block_size as f32;
     let scaled_player = Player {
         pos: Vector2::new(scaled_player_x, scaled_player_y),
         a: player.a,
@@ -165,13 +168,14 @@ fn cast_ray_2d(
 pub fn render_3d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>>, _texture_manager: &TextureManager) {
     let num_rays = framebuffer.width;
     let hh = framebuffer.height as f32 / 2.0;  // precalculated half height
+    let world_block_size = 20; // Must match the block size used in player.rs and 2D rendering
 
     framebuffer.set_current_color(Color::WHITESMOKE);
 
     for i in 0..num_rays {
         let current_ray = i as f32 / num_rays as f32;
         let a = player.a - (player.fov / 2.0) + (player.fov * current_ray);
-        let intersect = cast_ray(framebuffer, &maze, &player, a, 50, false);
+        let intersect = cast_ray(framebuffer, &maze, &player, a, world_block_size, false);
 
         // Calculate the height of the stake
         let distance_to_wall = intersect.distance;

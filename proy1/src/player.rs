@@ -20,7 +20,7 @@ impl Player {
 pub fn process_events(player: &mut Player, rl: &RaylibHandle, maze: &Vec<Vec<char>>) {
     const MOVE_SPEED: f32 = 3.0;
     const ROTATION_SPEED: f32 = PI / 30.0;
-    const BLOCK_SIZE: f32 = 50.0;
+    const BLOCK_SIZE: f32 = 20.0; // Updated to match render.rs world_block_size
 
     // Rotation doesn't need collision detection
     if rl.is_key_down(KeyboardKey::KEY_LEFT) || rl.is_key_down(KeyboardKey::KEY_A) {

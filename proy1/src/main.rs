@@ -35,12 +35,12 @@ fn main() {
     let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
     framebuffer.set_background_color(Color::new(50, 50, 100, 255));
 
-    let mut maze_obj = Maze::new(8, 6);
-    let mut maze = &maze_obj.map;
+    let maze_obj = Maze::new(8, 6);
+    let maze = &maze_obj.map;
     
     // Create player at a simple, known valid position for 8x6 maze
     let mut player = Player {
-        pos: Vector2::new(75.0, 75.0), // Position that should work with 8x6 maze
+        pos: Vector2::new(30.0, 30.0), // Position adjusted for BLOCK_SIZE = 20 (1.5, 1.5 in maze coordinates)
         a: PI / 4.0,
         fov: PI / 3.0,
     };
@@ -52,7 +52,7 @@ fn main() {
     let mut frame_count = 0;
     let mut fps_timer = Instant::now();
     let mut current_fps = 0.0;
-    let target_fps = 60.0; // Target FPS para comparison
+    let _target_fps = 60.0; // Target FPS para comparison
     
     // Game variables - commented out for now since we need to implement these modules
     // let mut show_2d = false;

@@ -166,6 +166,7 @@ impl Framebuffer {
                 let color = match cell {
                     '+' | '-' | '|' => Color::BROWN,
                     'g' => Color::GOLD,
+                    's' => Color::LIME,
                     _ => Color::new(34, 139, 34, 100), // Green translucent for open spaces
                 };
                 
@@ -175,9 +176,10 @@ impl Framebuffer {
             }
         }
         
-        // Draw player position
-        let player_x = minimap_x + (player.pos.x / 50.0 * scale_x) as i32;
-        let player_y = minimap_y + (player.pos.y / 50.0 * scale_y) as i32;
+        // Draw player position (using correct world block size)
+        let world_block_size = 20.0; // Must match the block size used in player.rs and rendering
+        let player_x = minimap_x + (player.pos.x / world_block_size * scale_x) as i32;
+        let player_y = minimap_y + (player.pos.y / world_block_size * scale_y) as i32;
         renderer.draw_circle(player_x, player_y, 4.0, Color::RED);
         
         // Draw player direction indicator
@@ -187,7 +189,7 @@ impl Framebuffer {
         renderer.draw_line(player_x, player_y, end_x, end_y, Color::YELLOW);
 
         // Draw player coordinates for debugging
-        let coord_text = format!("({:.0}, {:.0})", player.pos.x / 50.0, player.pos.y / 50.0);
+        let coord_text = format!("({:.0}, {:.0})", player.pos.x / world_block_size, player.pos.y / world_block_size);
         renderer.draw_text(&coord_text, minimap_x, minimap_y + minimap_height + 5, 12, Color::WHITE);
     }
 }
