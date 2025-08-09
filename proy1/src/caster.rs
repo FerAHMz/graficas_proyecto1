@@ -37,7 +37,7 @@ pub fn cast_ray(
             };
         }
 
-        if maze[j][i] != ' ' {
+        if maze[j][i] == '+' || maze[j][i] == '-' || maze[j][i] == '|' {
             return Intersect {
                 distance: d,
                 impact: maze[j][i]

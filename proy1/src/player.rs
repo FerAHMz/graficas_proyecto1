@@ -62,5 +62,9 @@ fn is_position_valid(x: f32, y: f32, maze: &Vec<Vec<char>>, block_size: f32) -> 
     }
     
     // Check if the cell is empty (walkable)
-    maze[maze_y][maze_x] == ' ' || maze[maze_y][maze_x] == 'g'
+    // Allow walking on: empty spaces, goal, start, and any other non-wall characters
+    match maze[maze_y][maze_x] {
+        '+' | '-' | '|' => false,  // These are walls
+        _ => true,  // Everything else is walkable (including ' ', 'g', 's', etc.)
+    }
 }

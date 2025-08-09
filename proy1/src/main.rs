@@ -40,7 +40,7 @@ fn main() {
     
     // Create player at a simple, known valid position for 8x6 maze
     let mut player = Player {
-        pos: Vector2::new(75.0, 100.0), // Position that should work with 8x6 maze
+        pos: Vector2::new(75.0, 75.0), // Position that should work with 8x6 maze
         a: PI / 4.0,
         fov: PI / 3.0,
     };

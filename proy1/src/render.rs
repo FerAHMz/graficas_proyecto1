@@ -9,8 +9,9 @@ fn cell_to_color(cell: char) -> Color {
         '+' => Color::BROWN,
         '-' => Color::GRAY,
         '|' => Color::DARKGRAY,
-        'g' => Color::GOLD,
-        _ => Color::WHITE,
+        'g' => Color::GOLD,          // Goal - gold color but walkable
+        's' => Color::LIME,          // Start - lime color but walkable  
+        _ => Color::new(200, 200, 200, 255), // Light gray for empty spaces
     }
 }
 
@@ -21,15 +22,31 @@ fn draw_cell(
     block_size: usize,
     cell: char,
 ) {
+    // Only draw walls and special markers, not empty spaces
     if cell == ' ' {
         return;
     }
+    
     let color = cell_to_color(cell);
     framebuffer.set_current_color(color);
 
-    for x in xo..xo + block_size {
-        for y in yo..yo + block_size {
-            framebuffer.set_pixel(x as u32, y as u32);
+    // For goal and start, just draw a small marker in the center
+    if cell == 'g' || cell == 's' {
+        let center_x = xo + block_size / 2;
+        let center_y = yo + block_size / 2;
+        let marker_size = block_size / 3;
+        
+        for x in center_x.saturating_sub(marker_size/2)..center_x + marker_size/2 {
+            for y in center_y.saturating_sub(marker_size/2)..center_y + marker_size/2 {
+                framebuffer.set_pixel(x as u32, y as u32);
+            }
+        }
+    } else {
+        // Draw full blocks for walls
+        for x in xo..xo + block_size {
+            for y in yo..yo + block_size {
+                framebuffer.set_pixel(x as u32, y as u32);
+            }
         }
     }
 }
@@ -133,7 +150,7 @@ fn cast_ray_2d(
             break;
         }
 
-        if maze[j][i] != ' ' && maze[j][i] != 'g' {
+        if maze[j][i] == '+' || maze[j][i] == '-' || maze[j][i] == '|' {
             break;
         }
 
