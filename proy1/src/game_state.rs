@@ -2,10 +2,10 @@ use raylib::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GameState {
-    MainMenu,
-    LevelSelect,
+    Welcome,     // Pantalla de bienvenida con temática Pokémon
+    LevelSelect, // Selección de niveles temáticos
     Playing,
-    Victory,
+    Victory,     // Pantalla de éxito al completar nivel
 }
 
 pub struct GameStateManager {
@@ -18,43 +18,32 @@ pub struct GameStateManager {
 impl GameStateManager {
     pub fn new() -> Self {
         GameStateManager {
-            current_state: GameState::MainMenu,
+            current_state: GameState::Welcome,
             selected_level: 0,
             selected_menu_option: 0,
             menu_options: vec![
-                "Jugar".to_string(),
-                "Seleccionar Nivel".to_string(),
+                "Iniciar Aventura".to_string(),
+                "Seleccionar Región".to_string(),
                 "Salir".to_string(),
             ],
         }
     }
-    
+
     pub fn update(&mut self, rl: &mut RaylibHandle) {
         match self.current_state {
-            GameState::MainMenu => self.update_main_menu(rl),
+            GameState::Welcome => self.update_welcome(rl),
             GameState::LevelSelect => self.update_level_select(rl),
+            GameState::Victory => self.update_victory(rl),
             _ => {}
         }
     }
-    
-    fn update_main_menu(&mut self, rl: &mut RaylibHandle) {
-        if rl.is_key_pressed(KeyboardKey::KEY_UP) && self.selected_menu_option > 0 {
-            self.selected_menu_option -= 1;
-        }
-        if rl.is_key_pressed(KeyboardKey::KEY_DOWN) && self.selected_menu_option < self.menu_options.len() - 1 {
-            self.selected_menu_option += 1;
-        }
-        
-        if rl.is_key_pressed(KeyboardKey::KEY_ENTER) {
-            match self.selected_menu_option {
-                0 => self.current_state = GameState::Playing,
-                1 => self.current_state = GameState::LevelSelect,
-                2 => std::process::exit(0),
-                _ => {}
-            }
+
+    fn update_welcome(&mut self, rl: &mut RaylibHandle) {
+        if rl.is_key_pressed(KeyboardKey::KEY_ENTER) || rl.is_key_pressed(KeyboardKey::KEY_SPACE) {
+            self.current_state = GameState::LevelSelect;
         }
     }
-    
+
     fn update_level_select(&mut self, rl: &mut RaylibHandle) {
         if rl.is_key_pressed(KeyboardKey::KEY_LEFT) && self.selected_level > 0 {
             self.selected_level -= 1;
@@ -62,76 +51,160 @@ impl GameStateManager {
         if rl.is_key_pressed(KeyboardKey::KEY_RIGHT) && self.selected_level < 2 {
             self.selected_level += 1;
         }
-        
+
         if rl.is_key_pressed(KeyboardKey::KEY_ENTER) {
             self.current_state = GameState::Playing;
         }
-        
+
         if rl.is_key_pressed(KeyboardKey::KEY_ESCAPE) {
-            self.current_state = GameState::MainMenu;
+            self.current_state = GameState::Welcome;
         }
     }
-    
-    pub fn draw_main_menu(&self, d: &mut RaylibDrawHandle) {
-        d.clear_background(Color::new(25, 42, 86, 255)); // Azul Pokémon
-        
-        // Título principal
-        d.draw_text("POKÉMON RAYCASTER", 200, 100, 40, Color::YELLOW);
-        d.draw_text("Escape del Laberinto", 250, 150, 24, Color::WHITE);
-        
-        // Opciones del menú
-        for (i, option) in self.menu_options.iter().enumerate() {
-            let y = 250 + (i * 50) as i32;
-            let color = if i == self.selected_menu_option {
-                Color::YELLOW
-            } else {
-                Color::WHITE
-            };
-            
-            let prefix = if i == self.selected_menu_option { "> " } else { "  " };
-            d.draw_text(&format!("{}{}", prefix, option), 350, y, 24, color);
+
+    fn update_victory(&mut self, rl: &mut RaylibHandle) {
+        if rl.is_key_pressed(KeyboardKey::KEY_ESCAPE) {
+            self.current_state = GameState::Welcome;
         }
-        
-        // Instrucciones
-        d.draw_text("Usa ↑↓ para navegar, ENTER para seleccionar", 200, 450, 16, Color::LIGHTGRAY);
+        if rl.is_key_pressed(KeyboardKey::KEY_R) {
+            self.current_state = GameState::Playing;
+        }
     }
-    
+
+    pub fn draw_welcome(&self, d: &mut RaylibDrawHandle) {
+        self.draw_background(d, Color::new(25, 42, 86, 255));
+        self.draw_title(d, "POKÉMON RAYCASTER", 202, 152, 48, Color::BLACK, Color::new(255, 204, 51, 255));
+        d.draw_text("Aventura en el Laberinto", 240, 210, 24, Color::WHITE);
+        d.draw_text("¡Bienvenido, joven entrenador!", 220, 280, 24, Color::new(255, 204, 51, 255));
+        d.draw_text("Tu aventura en el mundo Pokémon está a punto de comenzar.", 120, 320, 18, Color::WHITE);
+        d.draw_text("Explora laberintos místicos y encuentra todos los Pokémon.", 130, 350, 18, Color::WHITE);
+
+        self.draw_controls(d);
+        self.draw_pokeball_decorations(d);
+        d.draw_text("Presiona ESPACIO o ENTER para comenzar", 180, 540, 20, Color::new(255, 204, 51, 255));
+    }
+
     pub fn draw_level_select(&self, d: &mut RaylibDrawHandle) {
-        d.clear_background(Color::new(25, 42, 86, 255));
-        
-        d.draw_text("SELECCIONAR NIVEL", 250, 100, 32, Color::YELLOW);
-        
+        self.draw_background(d, Color::new(25, 42, 86, 255));
+        self.draw_title(d, "SELECCIONAR REGIÓN", 252, 102, 32, Color::BLACK, Color::new(255, 204, 51, 255));
+
         let levels = ["Centro Pokémon", "Cueva Oscura", "Torre Victoria"];
         let descriptions = [
             "Un laberinto básico para entrenadores novatos",
-            "Laberinto medio con obstáculos adicionales", 
-            "El desafío final para maestros Pokémon"
+            "Laberinto medio con obstáculos adicionales",
+            "El desafío final para maestros Pokémon",
         ];
-        
-        for (i, (level, desc)) in levels.iter().zip(descriptions.iter()).enumerate() {
-            let y = 200 + (i * 80) as i32;
-            let color = if i == self.selected_level {
-                Color::YELLOW
-            } else {
-                Color::WHITE
-            };
-            
-            let prefix = if i == self.selected_level { "> " } else { "  " };
-            d.draw_text(&format!("{}{}", prefix, level), 100, y, 24, color);
-            d.draw_text(desc, 120, y + 25, 16, Color::LIGHTGRAY);
+        let difficulties = ["⭐ FÁCIL", "⭐⭐ MEDIO", "⭐⭐⭐ DIFÍCIL"];
+
+        for (i, ((level, desc), diff)) in levels.iter().zip(descriptions.iter()).zip(difficulties.iter()).enumerate() {
+            let y = 180 + (i * 100) as i32;
+            let is_selected = i == self.selected_level;
+
+            self.draw_level_option(d, i, y, level, desc, diff, is_selected);
         }
-        
-        d.draw_text("← → para cambiar nivel, ENTER para jugar, ESC para volver", 150, 500, 16, Color::LIGHTGRAY);
+
+        d.draw_rectangle(100, 520, 600, 60, Color::new(50, 50, 50, 200));
+        d.draw_text("← → para cambiar región, ENTER para comenzar aventura", 120, 535, 18, Color::WHITE);
+        d.draw_text("ESC para volver al menú principal", 250, 555, 16, Color::LIGHTGRAY);
     }
-    
+
     pub fn draw_victory(&self, d: &mut RaylibDrawHandle) {
-        d.draw_rectangle(0, 0, 800, 600, Color::new(0, 0, 0, 200));
+        d.draw_rectangle(0, 0, 800, 600, Color::new(0, 0, 0, 180));
+        d.draw_rectangle(150, 120, 500, 360, Color::new(25, 42, 86, 255));
+        d.draw_rectangle_lines_ex(Rectangle::new(150.0, 120.0, 500.0, 360.0), 5.0, Color::GOLD);
+        d.draw_rectangle_lines_ex(Rectangle::new(155.0, 125.0, 490.0, 350.0), 2.0, Color::new(255, 204, 51, 255));
+
+        self.draw_title(d, "¡VICTORIA!", 302, 162, 48, Color::BLACK, Color::GOLD);
+        d.draw_text("¡Has completado la región!", 220, 220, 24, Color::WHITE);
+        d.draw_text("¡Eres un verdadero", 280, 260, 20, Color::new(255, 204, 51, 255));
+        d.draw_text("Maestro Pokémon!", 300, 280, 20, Color::new(255, 204, 51, 255));
+
+        self.draw_statistics(d);
+
+        d.draw_rectangle(200, 420, 400, 40, Color::new(50, 50, 50, 200));
+        d.draw_text("ESC: Volver al menú   |   R: Jugar de nuevo", 220, 435, 16, Color::WHITE);
+
+        self.draw_trophy_decorations(d);
+        self.draw_particle_effects(d);
+    }
+
+    fn draw_background(&self, d: &mut RaylibDrawHandle, color: Color) {
+        d.clear_background(color);
+        d.draw_rectangle(0, 0, 800, 100, Color::new(255, 204, 51, 255)); // Amarillo Pokémon
+        d.draw_rectangle(0, 90, 800, 20, Color::new(255, 165, 0, 255)); // Naranja
+    }
+
+    fn draw_title(&self, d: &mut RaylibDrawHandle, title: &str, x: i32, y: i32, size: i32, shadow_color: Color, text_color: Color) {
+        d.draw_text(title, x, y, size, shadow_color); // Sombra
+        d.draw_text(title, x - 2, y - 2, size, text_color); // Texto
+    }
+
+    fn draw_controls(&self, d: &mut RaylibDrawHandle) {
+        d.draw_rectangle(150, 420, 500, 80, Color::new(50, 50, 50, 200));
+        d.draw_text("CONTROLES:", 170, 435, 20, Color::new(255, 204, 51, 255));
+        d.draw_text("• WASD o Flechas: Mover    • Mouse: Rotar cámara", 170, 460, 16, Color::WHITE);
+        d.draw_text("• M: Cambiar vista 2D/3D   • C: Mostrar/Ocultar cursor", 170, 480, 16, Color::WHITE);
+    }
+
+    fn draw_pokeball_decorations(&self, d: &mut RaylibDrawHandle) {        d.draw_circle(100, 300, 15.0, Color::RED);
+        d.draw_circle(100, 300, 12.0, Color::WHITE);
+        d.draw_circle(100, 300, 5.0, Color::BLACK);
         
-        d.draw_text("¡VICTORIA!", 300, 200, 48, Color::GOLD);
-        d.draw_text("¡Has capturado todos los Pokémon!", 200, 270, 24, Color::WHITE);
-        d.draw_text("¡Eres un verdadero Maestro Pokémon!", 190, 300, 20, Color::YELLOW);
-        
-        d.draw_text("Presiona ESC para volver al menú", 250, 400, 18, Color::LIGHTGRAY);
-        d.draw_text("Presiona R para jugar de nuevo", 260, 430, 18, Color::LIGHTGRAY);
+        d.draw_circle(700, 300, 15.0, Color::RED);
+        d.draw_circle(700, 300, 12.0, Color::WHITE);
+        d.draw_circle(700, 300, 5.0, Color::BLACK);
+    }
+
+    fn draw_level_option(&self, d: &mut RaylibDrawHandle, i: usize, y: i32, level: &str, desc: &str, diff: &str, is_selected: bool) {
+        // Fondo del nivel seleccionado
+        if is_selected {
+            d.draw_rectangle(80, y - 10, 640, 90, Color::new(255, 204, 51, 100));
+            d.draw_rectangle_lines_ex(Rectangle::new(80.0, (y - 10) as f32, 640.0, 90.0), 3.0, Color::new(255, 204, 51, 255));
+        }
+
+        let text_color = if is_selected { Color::new(255, 204, 51, 255) } else { Color::WHITE };
+        let prefix = if is_selected { "► " } else { "  " };
+
+        // Nombre del nivel
+        d.draw_text(&format!("{}{}", prefix, level), 100, y, 28, text_color);
+
+        // Descripción
+        d.draw_text(desc, 120, y + 30, 16, Color::LIGHTGRAY);
+
+        // Dificultad
+        d.draw_text(diff, 120, y + 50, 14, if is_selected { Color::ORANGE } else { Color::GRAY });
+
+        // Decoración tipo badge
+        if is_selected {
+            d.draw_circle(650, y + 25, 20.0, Color::new(255, 204, 51, 200));
+            d.draw_circle(650, y + 25, 15.0, Color::new(255, 165, 0, 255));
+            d.draw_text("✓", 645, y + 18, 20, Color::WHITE);
+        }
+    }
+
+    fn draw_statistics(&self, d: &mut RaylibDrawHandle) {
+        d.draw_text("Estadísticas:", 200, 320, 18, Color::LIGHTGRAY);
+        d.draw_text("• Tiempo: --:--", 220, 345, 16, Color::WHITE);
+        d.draw_text("• Pokémon encontrados: ✓", 220, 365, 16, Color::WHITE);
+        d.draw_text("• Región completada: ✓", 220, 385, 16, Color::WHITE);
+    }
+
+    fn draw_trophy_decorations(&self, d: &mut RaylibDrawHandle) {
+        d.draw_circle(180, 180, 25.0, Color::GOLD);
+        d.draw_circle(180, 180, 20.0, Color::YELLOW);
+        d.draw_text("🏆", 170, 165, 30, Color::WHITE);
+
+        d.draw_circle(620, 180, 25.0, Color::GOLD);
+        d.draw_circle(620, 180, 20.0, Color::YELLOW);
+        d.draw_text("⭐", 610, 165, 30, Color::WHITE);
+    }
+
+    fn draw_particle_effects(&self, d: &mut RaylibDrawHandle) {
+        for i in 0..8 {
+            let angle = (i as f32 * 45.0).to_radians();
+            let radius = 80.0;
+            let x = (400.0 + angle.cos() * radius) as i32;
+            let y = (300.0 + angle.sin() * radius) as i32;
+            d.draw_circle(x, y, 3.0, Color::new(255, 204, 51, 150));
+        }
     }
 }

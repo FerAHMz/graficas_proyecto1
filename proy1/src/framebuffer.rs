@@ -192,4 +192,86 @@ impl Framebuffer {
         let coord_text = format!("({:.0}, {:.0})", player.pos.x / world_block_size, player.pos.y / world_block_size);
         renderer.draw_text(&coord_text, minimap_x, minimap_y + minimap_height + 5, 12, Color::WHITE);
     }
+
+    // Simplified draw method for game states that don't need framebuffer rendering
+    pub fn draw_ui_overlay(
+        &self,
+        d: &mut RaylibDrawHandle,
+        fps: f32,
+        player: &Player,
+        maze: &Vec<Vec<char>>,
+    ) {
+        // Draw FPS counter with color coding
+        let fps_color = if fps >= 15.0 { 
+            Color::GREEN 
+        } else if fps >= 10.0 { 
+            Color::YELLOW 
+        } else { 
+            Color::RED 
+        };
+        let fps_text = format!("FPS: {:.1}", fps);
+        d.draw_text(&fps_text, 10, 10, 20, fps_color);
+        
+        // Draw performance status
+        let status = if fps >= 15.0 { 
+            "GOOD" 
+        } else if fps >= 10.0 { 
+            "OK" 
+        } else { 
+            "LOW" 
+        };
+        d.draw_text(&format!("Performance: {}", status), 10, 35, 16, fps_color);
+        
+        // Draw minimap in top-right corner
+        self.draw_minimap_to_handle(d, player, maze);
+        
+        // Draw controls info
+        d.draw_text("M: Toggle 2D/3D | WASD/Arrows: Move | C: Toggle Cursor | ESC: Menu", 10, self.height as i32 - 30, 14, Color::WHITE);
+    }
+
+    fn draw_minimap_to_handle(&self, d: &mut RaylibDrawHandle, player: &Player, maze: &Vec<Vec<char>>) {
+        let minimap_size = 8; // Size of each cell in the minimap
+        let minimap_width = maze[0].len() * minimap_size;
+        let minimap_height = maze.len() * minimap_size;
+        let minimap_x = self.width as i32 - minimap_width as i32 - 10;
+        let minimap_y = 60;
+        let world_block_size = 20.0;
+
+        // Draw minimap background
+        d.draw_rectangle(minimap_x - 2, minimap_y - 2, minimap_width as i32 + 4, minimap_height as i32 + 4, Color::BLACK);
+
+        // Draw maze cells
+        for (row_index, row) in maze.iter().enumerate() {
+            for (col_index, &cell) in row.iter().enumerate() {
+                let x = minimap_x + (col_index * minimap_size) as i32;
+                let y = minimap_y + (row_index * minimap_size) as i32;
+
+                let color = match cell {
+                    '+' | '-' | '|' => Color::BROWN,    // Walls
+                    'g' => Color::GOLD,                  // Goal
+                    's' => Color::LIME,                  // Start
+                    _ => Color::new(200, 200, 200, 255), // Empty space
+                };
+
+                d.draw_rectangle(x, y, minimap_size as i32, minimap_size as i32, color);
+            }
+        }
+
+        // Draw player position and direction
+        let player_minimap_x = minimap_x + (player.pos.x / world_block_size * minimap_size as f32) as i32;
+        let player_minimap_y = minimap_y + (player.pos.y / world_block_size * minimap_size as f32) as i32;
+
+        // Player dot
+        d.draw_circle(player_minimap_x, player_minimap_y, 3.0, Color::RED);
+
+        // Direction line
+        let line_length = 15.0;
+        let end_x = player_minimap_x as f32 + player.a.cos() * line_length;
+        let end_y = player_minimap_y as f32 + player.a.sin() * line_length;
+        d.draw_line(player_minimap_x, player_minimap_y, end_x as i32, end_y as i32, Color::YELLOW);
+
+        // Draw player coordinates for debugging
+        let coord_text = format!("({:.0}, {:.0})", player.pos.x / world_block_size, player.pos.y / world_block_size);
+        d.draw_text(&coord_text, minimap_x, minimap_y + minimap_height as i32 + 5, 12, Color::WHITE);
+    }
 }

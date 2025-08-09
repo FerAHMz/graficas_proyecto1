@@ -8,6 +8,7 @@ mod caster;
 mod player;
 mod render;
 mod textures;
+mod game_state;
 
 use line::line;
 use maze::Maze;
@@ -16,6 +17,7 @@ use framebuffer::Framebuffer;
 use player::{Player, process_events};
 use render::{render_2d, render_3d};
 use textures::TextureManager;
+use game_state::{GameState, GameStateManager};
 
 use raylib::prelude::*;
 use std::thread;
@@ -52,6 +54,7 @@ fn main() {
     let texture_manager = TextureManager::new(&mut rl, &thread);
     let mut mode_3d = true;
     let mut mouse_enabled = true; // Track mouse control state
+    let mut game_state_manager = GameStateManager::new();
     
     // FPS tracking
     let mut frame_count = 0;
@@ -78,90 +81,86 @@ fn main() {
             fps_timer = Instant::now();
         }
         
-        // 1. clear framebuffer
-        framebuffer.clear();
-
-        // 2. move the player on user input
-        process_events(&mut player, &rl, &maze);
-
-        // 3. toggle between 2D and 3D mode
-        if rl.is_key_pressed(KeyboardKey::KEY_M) {
-            mode_3d = !mode_3d;
-        }
-
-        // Toggle mouse control
-        if rl.is_key_pressed(KeyboardKey::KEY_ESCAPE) {
-            mouse_enabled = !mouse_enabled;
-            if mouse_enabled {
-                rl.disable_cursor();
-            } else {
-                rl.enable_cursor();
+        // Update game state
+        game_state_manager.update(&mut rl);
+        
+        // Check if player reached goal in Playing state
+        if game_state_manager.current_state == GameState::Playing {
+            let world_block_size = 20.0;
+            let maze_x = (player.pos.x / world_block_size) as usize;
+            let maze_y = (player.pos.y / world_block_size) as usize;
+            
+            if maze_y < maze.len() && maze_x < maze[0].len() && maze[maze_y][maze_x] == 'g' {
+                game_state_manager.current_state = GameState::Victory;
             }
         }
+        
+        match game_state_manager.current_state {
+            GameState::Welcome => {
+                let mut d = rl.begin_drawing(&thread);
+                game_state_manager.draw_welcome(&mut d);
+            },
+            GameState::LevelSelect => {
+                let mut d = rl.begin_drawing(&thread);
+                game_state_manager.draw_level_select(&mut d);
+            },
+            GameState::Playing => {
+                // 1. clear framebuffer
+                framebuffer.clear();
 
-        // 4. draw stuff
-        if mode_3d {
-            render_3d(&mut framebuffer, &player, &maze, &texture_manager);
-        } else {
-            render_2d(&mut framebuffer, &player, &maze);
+                // 2. move the player on user input
+                process_events(&mut player, &rl, &maze);
+
+                // 3. toggle between 2D and 3D mode
+                if rl.is_key_pressed(KeyboardKey::KEY_M) {
+                    mode_3d = !mode_3d;
+                }
+
+                // Toggle mouse control with C key
+                if rl.is_key_pressed(KeyboardKey::KEY_C) {
+                    mouse_enabled = !mouse_enabled;
+                    if mouse_enabled {
+                        rl.disable_cursor();
+                    } else {
+                        rl.enable_cursor();
+                    }
+                }
+                
+                // Back to menu with ESC
+                if rl.is_key_pressed(KeyboardKey::KEY_ESCAPE) {
+                    game_state_manager.current_state = GameState::Welcome;
+                }
+
+                // 4. draw stuff
+                if mode_3d {
+                    render_3d(&mut framebuffer, &player, &maze, &texture_manager);
+                } else {
+                    render_2d(&mut framebuffer, &player, &maze);
+                }
+
+                // 5. draw framebuffer content with FPS and minimap
+                framebuffer.swap_buffers_with_fps_and_minimap(&mut rl, &thread, current_fps, &player, &maze);
+            },
+            GameState::Victory => {
+                // Check input first (before begin_drawing)
+                let should_exit = rl.is_key_pressed(KeyboardKey::KEY_ESCAPE);
+                let should_restart = rl.is_key_pressed(KeyboardKey::KEY_R);
+                
+                let mut d = rl.begin_drawing(&thread);
+                game_state_manager.draw_victory(&mut d);
+                
+                // Apply state changes after drawing
+                if should_exit {
+                    game_state_manager.current_state = GameState::Welcome;
+                }
+                if should_restart {
+                    // Reset player position when restarting
+                    player.pos = Vector2::new(30.0, 30.0);
+                    game_state_manager.current_state = GameState::Playing;
+                }
+            }
         }
-
-        // 5. swap buffers with FPS display and minimap
-        framebuffer.swap_buffers_with_fps_and_minimap(&mut rl, &thread, current_fps, &player, &maze);
 
         thread::sleep(Duration::from_millis(16));
     }
 }
-
-/*
-fn create_player_from_maze(maze_obj: &Maze) -> Player {
-    let start_pos = maze_obj.find_player_start().unwrap_or((1, 1));
-    Player::new(
-        Vector2::new(start_pos.0 as f32 * 50.0 + 25.0, start_pos.1 as f32 * 50.0 + 25.0), 
-        std::f32::consts::PI / 4.0, 
-        std::f32::consts::PI / 3.0
-    )
-}
-
-fn draw_minimap(d: &mut RaylibDrawHandle, player: &Player, maze: &Vec<Vec<char>>, x: i32, y: i32, width: i32, height: i32) {
-    let scale_x = width as f32 / maze[0].len() as f32;
-    let scale_y = height as f32 / maze.len() as f32;
-    
-    // Fondo del minimapa
-    d.draw_rectangle(x, y, width, height, Color::new(0, 0, 0, 150));
-    d.draw_rectangle_lines(x, y, width, height, Color::YELLOW);
-    
-    // Título del minimapa
-    d.draw_text("MAPA", x + 5, y - 20, 14, Color::YELLOW);
-    
-    // Dibujar el mapa
-    for (row_idx, row) in maze.iter().enumerate() {
-        for (col_idx, &cell) in row.iter().enumerate() {
-            let rect_x = x + (col_idx as f32 * scale_x) as i32;
-            let rect_y = y + (row_idx as f32 * scale_y) as i32;
-            let rect_w = scale_x.max(1.0) as i32;
-            let rect_h = scale_y.max(1.0) as i32;
-            
-            let color = match cell {
-                '+' | '-' | '|' => Color::BROWN,
-                'g' => Color::GOLD,
-                _ => Color::new(34, 139, 34, 100), // Verde translúcido para espacios abiertos
-            };
-            
-            if cell != ' ' {
-                d.draw_rectangle(rect_x, rect_y, rect_w, rect_h, color);
-            }
-        }
-    }
-    
-    // Dibujar jugador
-    let player_x = x + (player.pos.x / 50.0 * scale_x) as i32;
-    let player_y = y + (player.pos.y / 50.0 * scale_y) as i32;
-    d.draw_circle(player_x, player_y, 4.0, Color::RED);
-    
-    // Dibujar dirección del jugador
-    let end_x = player_x + (player.a.cos() * 12.0) as i32;
-    let end_y = player_y + (player.a.sin() * 12.0) as i32;
-    d.draw_line(player_x, player_y, end_x, end_y, Color::YELLOW);
-}
-*/

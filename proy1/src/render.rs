@@ -4,6 +4,41 @@ use crate::player::Player;
 use crate::textures::TextureManager;
 use crate::caster::{cast_ray, Intersect};
 
+// Sample a color from a texture at given UV coordinates
+fn sample_texture(texture: &Texture2D, u: f32, v: f32) -> Color {
+    let x = (u * texture.width as f32) as i32;
+    let y = (v * texture.height as f32) as i32;
+    
+    let x = x.max(0).min(texture.width - 1);
+    let y = y.max(0).min(texture.height - 1);
+    
+    // Since we can't directly sample pixels from Texture2D in raylib-rs,
+    // we'll use a simplified approach with base colors
+    // This could be improved by keeping the original Image data
+    Color::SKYBLUE // Placeholder - in a full implementation you'd sample the actual texture
+}
+
+// Generate Pokemon-themed sky colors (inspired by classic Pokemon sky)
+fn get_pokemon_sky_color(x: u32, y: u32) -> Color {
+    let pattern = (x / 20 + y / 15) % 3;
+    match pattern {
+        0 => Color::new(135, 206, 250, 255), // Light sky blue
+        1 => Color::new(176, 224, 230, 255), // Powder blue  
+        _ => Color::new(173, 216, 230, 255), // Light blue
+    }
+}
+
+// Generate Pokemon-themed floor colors (inspired by classic Pokemon grass)
+fn get_pokemon_floor_color(x: u32, y: u32) -> Color {
+    let pattern = (x / 15 + y / 20) % 4;
+    match pattern {
+        0 => Color::new(34, 139, 34, 255),   // Forest green
+        1 => Color::new(50, 205, 50, 255),   // Lime green
+        2 => Color::new(46, 125, 50, 255),   // Dark green
+        _ => Color::new(76, 175, 80, 255),   // Medium green
+    }
+}
+
 fn cell_to_color(cell: char) -> Color {
     match cell {
         '+' => Color::BROWN,
@@ -165,7 +200,7 @@ fn cast_ray_2d(
     }
 }
 
-pub fn render_3d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>>, _texture_manager: &TextureManager) {
+pub fn render_3d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>>, texture_manager: &TextureManager) {
     let num_rays = framebuffer.width;
     let hh = framebuffer.height as f32 / 2.0;  // precalculated half height
     let world_block_size = 20; // Must match the block size used in player.rs and 2D rendering
@@ -212,15 +247,25 @@ pub fn render_3d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<
             framebuffer.set_pixel(i, y as u32);
         }
 
-        // Draw sky
-        framebuffer.set_current_color(Color::new(135, 206, 235, 255)); // Sky blue
+        // Draw Pokemon-themed sky
         for y in 0..stake_top {
+            let sky_color = if texture_manager.sky_texture.is_some() {
+                get_pokemon_sky_color(i, y as u32)
+            } else {
+                Color::new(135, 206, 235, 255) // Fallback sky blue
+            };
+            framebuffer.set_current_color(sky_color);
             framebuffer.set_pixel(i, y as u32);
         }
 
-        // Draw floor
-        framebuffer.set_current_color(Color::new(34, 139, 34, 255)); // Green grass
+        // Draw Pokemon-themed floor
         for y in stake_bottom..framebuffer.height as usize {
+            let floor_color = if texture_manager.floor_texture.is_some() {
+                get_pokemon_floor_color(i, y as u32)
+            } else {
+                Color::new(34, 139, 34, 255) // Fallback green grass
+            };
+            framebuffer.set_current_color(floor_color);
             framebuffer.set_pixel(i, y as u32);
         }
     }
