@@ -32,6 +32,10 @@ fn main() {
         .log_level(TraceLogLevel::LOG_WARNING)
         .build();
 
+    // Enable mouse for camera rotation
+    rl.set_mouse_cursor(MouseCursor::MOUSE_CURSOR_CROSSHAIR);
+    rl.disable_cursor(); // Hide cursor for FPS-style controls
+
     let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
     framebuffer.set_background_color(Color::new(50, 50, 100, 255));
 
@@ -47,6 +51,7 @@ fn main() {
 
     let texture_manager = TextureManager::new(&mut rl, &thread);
     let mut mode_3d = true;
+    let mut mouse_enabled = true; // Track mouse control state
     
     // FPS tracking
     let mut frame_count = 0;
@@ -82,6 +87,16 @@ fn main() {
         // 3. toggle between 2D and 3D mode
         if rl.is_key_pressed(KeyboardKey::KEY_M) {
             mode_3d = !mode_3d;
+        }
+
+        // Toggle mouse control
+        if rl.is_key_pressed(KeyboardKey::KEY_ESCAPE) {
+            mouse_enabled = !mouse_enabled;
+            if mouse_enabled {
+                rl.disable_cursor();
+            } else {
+                rl.enable_cursor();
+            }
         }
 
         // 4. draw stuff
