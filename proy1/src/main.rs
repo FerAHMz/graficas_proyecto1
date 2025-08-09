@@ -35,12 +35,13 @@ fn main() {
     let mut framebuffer = Framebuffer::new(window_width as u32, window_height as u32);
     framebuffer.set_background_color(Color::new(50, 50, 100, 255));
 
-    let mut maze_obj = Maze::new(15, 15);
+    let mut maze_obj = Maze::new(8, 6);
     let mut maze = &maze_obj.map;
     
+    // Create player at a simple, known valid position for 8x6 maze
     let mut player = Player {
-        pos: Vector2::new(150.0, 150.0),
-        a: PI / 3.0,
+        pos: Vector2::new(75.0, 100.0), // Position that should work with 8x6 maze
+        a: PI / 4.0,
         fov: PI / 3.0,
     };
 
@@ -90,8 +91,8 @@ fn main() {
             render_2d(&mut framebuffer, &player, &maze);
         }
 
-        // 5. swap buffers with FPS display
-        framebuffer.swap_buffers_with_fps(&mut rl, &thread, current_fps);
+        // 5. swap buffers with FPS display and minimap
+        framebuffer.swap_buffers_with_fps_and_minimap(&mut rl, &thread, current_fps, &player, &maze);
 
         thread::sleep(Duration::from_millis(16));
     }

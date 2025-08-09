@@ -1,4 +1,5 @@
 use raylib::prelude::*;
+use crate::player::Player;
 
 pub struct Framebuffer {
     pub width: u32,
@@ -55,6 +56,7 @@ impl Framebuffer {
     ) {
         if let Ok(texture) = window.load_texture_from_image(raylib_thread, &self.color_buffer) {
             let mut renderer = window.begin_drawing(raylib_thread);
+            renderer.clear_background(Color::BLACK);
             renderer.draw_texture(&texture, 0, 0, Color::WHITE);
         }
     }
@@ -64,6 +66,44 @@ impl Framebuffer {
         window: &mut RaylibHandle,
         raylib_thread: &RaylibThread,
         fps: f32,
+    ) {
+        if let Ok(texture) = window.load_texture_from_image(raylib_thread, &self.color_buffer) {
+            let mut renderer = window.begin_drawing(raylib_thread);
+            renderer.draw_texture(&texture, 0, 0, Color::WHITE);
+            
+            // Draw FPS counter with color coding
+            let fps_color = if fps >= 15.0 { 
+                Color::GREEN 
+            } else if fps >= 10.0 { 
+                Color::YELLOW 
+            } else { 
+                Color::RED 
+            };
+            let fps_text = format!("FPS: {:.1}", fps);
+            renderer.draw_text(&fps_text, 10, 10, 20, fps_color);
+            
+            // Draw performance status
+            let status = if fps >= 15.0 { 
+                "GOOD" 
+            } else if fps >= 10.0 { 
+                "OK" 
+            } else { 
+                "LOW" 
+            };
+            renderer.draw_text(&format!("Performance: {}", status), 10, 35, 16, fps_color);
+            
+            // Draw controls info
+            renderer.draw_text("M: Toggle 2D/3D | WASD/Arrows: Move", 10, self.height as i32 - 30, 16, Color::WHITE);
+        }
+    }
+
+    pub fn swap_buffers_with_fps_and_minimap(
+        &self,
+        window: &mut RaylibHandle,
+        raylib_thread: &RaylibThread,
+        fps: f32,
+        player: &Player,
+        maze: &Vec<Vec<char>>,
     ) {
         if let Ok(texture) = window.load_texture_from_image(raylib_thread, &self.color_buffer) {
             let mut renderer = window.begin_drawing(raylib_thread);
@@ -91,8 +131,63 @@ impl Framebuffer {
             };
             renderer.draw_text(&format!("Performance: {}", status), 10, 35, 16, fps_color);
             
+            // Draw minimap in top-right corner
+            self.draw_minimap(&mut renderer, player, maze);
+            
             // Draw controls info
             renderer.draw_text("M: Toggle 2D/3D | WASD/Arrows: Move", 10, self.height as i32 - 30, 16, Color::WHITE);
         }
+    }
+
+    fn draw_minimap(&self, renderer: &mut RaylibDrawHandle, player: &Player, maze: &Vec<Vec<char>>) {
+        let minimap_width = 160;
+        let minimap_height = 120;
+        let minimap_x = self.width as i32 - minimap_width - 10; // 10 pixels from right edge
+        let minimap_y = 10; // 10 pixels from top
+
+        let scale_x = minimap_width as f32 / maze[0].len() as f32;
+        let scale_y = minimap_height as f32 / maze.len() as f32;
+        
+        // Draw minimap background
+        renderer.draw_rectangle(minimap_x, minimap_y, minimap_width, minimap_height, Color::new(0, 0, 0, 150));
+        renderer.draw_rectangle_lines(minimap_x, minimap_y, minimap_width, minimap_height, Color::YELLOW);
+        
+        // Draw minimap title
+        renderer.draw_text("MINIMAP", minimap_x + 5, minimap_y - 20, 14, Color::YELLOW);
+        
+        // Draw the maze
+        for (row_idx, row) in maze.iter().enumerate() {
+            for (col_idx, &cell) in row.iter().enumerate() {
+                let rect_x = minimap_x + (col_idx as f32 * scale_x) as i32;
+                let rect_y = minimap_y + (row_idx as f32 * scale_y) as i32;
+                let rect_w = scale_x.max(1.0) as i32;
+                let rect_h = scale_y.max(1.0) as i32;
+                
+                let color = match cell {
+                    '+' | '-' | '|' => Color::BROWN,
+                    'g' => Color::GOLD,
+                    _ => Color::new(34, 139, 34, 100), // Green translucent for open spaces
+                };
+                
+                if cell != ' ' {
+                    renderer.draw_rectangle(rect_x, rect_y, rect_w, rect_h, color);
+                }
+            }
+        }
+        
+        // Draw player position
+        let player_x = minimap_x + (player.pos.x / 50.0 * scale_x) as i32;
+        let player_y = minimap_y + (player.pos.y / 50.0 * scale_y) as i32;
+        renderer.draw_circle(player_x, player_y, 4.0, Color::RED);
+        
+        // Draw player direction indicator
+        let dir_length = 12.0;
+        let end_x = player_x + (player.a.cos() * dir_length) as i32;
+        let end_y = player_y + (player.a.sin() * dir_length) as i32;
+        renderer.draw_line(player_x, player_y, end_x, end_y, Color::YELLOW);
+
+        // Draw player coordinates for debugging
+        let coord_text = format!("({:.0}, {:.0})", player.pos.x / 50.0, player.pos.y / 50.0);
+        renderer.draw_text(&coord_text, minimap_x, minimap_y + minimap_height + 5, 12, Color::WHITE);
     }
 }
