@@ -1,0 +1,49 @@
+{
+    "taylor_swift_playlist": {
+        "name": "Pokemon Raycaster Swift Mix",
+        "description": "La playlist perfecta de Taylor Swift para explorar laberintos Pokémon",
+        "tracks": [
+            {
+                "file": "shake_it_off.mp3",
+                "title": "Shake It Off",
+                "album": "1989",
+                "year": 2014,
+                "theme": "Perfecto para sacudirse los ataques de Pokémon salvajes"
+            },
+            {
+                "file": "blank_space.mp3",
+                "title": "Blank Space",
+                "album": "1989",
+                "year": 2014,
+                "theme": "Para esos momentos misteriosos en el laberinto"
+            },
+            {
+                "file": "anti_hero.mp3",
+                "title": "Anti-Hero",
+                "album": "Midnights",
+                "year": 2022,
+                "theme": "Cuando te enfrentas a Pokémon tipo Oscuro"
+            },
+            {
+                "file": "love_story.mp3",
+                "title": "Love Story",
+                "album": "Fearless",
+                "year": 2008,
+                "theme": "Para cuando encuentras tu Pokémon favorito"
+            },
+            {
+                "file": "we_are_never_getting_back_together.mp3",
+                "title": "We Are Never Getting Back Together",
+                "album": "Red",
+                "year": 2012,
+                "theme": "Después de ser derrotado por un Pokémon jefe"
+            }
+        ],
+        "audio_settings": {
+            "default_volume": 0.3,
+            "fade_duration": 2.0,
+            "auto_advance": true,
+            "shuffle_mode": false
+        }
+    }
+}

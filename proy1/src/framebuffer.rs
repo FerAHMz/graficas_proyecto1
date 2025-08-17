@@ -104,6 +104,7 @@ impl Framebuffer {
         fps: f32,
         player: &Player,
         maze: &Vec<Vec<char>>,
+        current_track_info: Option<&str>,
     ) {
         if let Ok(texture) = window.load_texture_from_image(raylib_thread, &self.color_buffer) {
             let mut renderer = window.begin_drawing(raylib_thread);
@@ -133,6 +134,15 @@ impl Framebuffer {
             
             // Draw minimap in top-right corner
             self.draw_minimap(&mut renderer, player, maze);
+            
+            // Draw Taylor Swift music info
+            if let Some(track_info) = current_track_info {
+                renderer.draw_text("🎵 Now Playing:", 10, 60, 16, Color::new(255, 192, 203, 255)); // Pink
+                renderer.draw_text(track_info, 10, 80, 14, Color::new(255, 105, 180, 255)); // Hot pink
+            }
+            
+            // Draw music controls
+            renderer.draw_text("N: Next Track | P: Previous | SPACE: Toggle Audio", 10, self.height as i32 - 50, 14, Color::new(200, 200, 200, 255));
             
             // Draw controls info
             renderer.draw_text("M: Toggle 2D/3D | WASD/Arrows: Move", 10, self.height as i32 - 30, 16, Color::WHITE);

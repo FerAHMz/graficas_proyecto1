@@ -1,4 +1,5 @@
 use raylib::prelude::*;
+use gilrs::{Gilrs, Button, Event, EventType};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GameState {
@@ -29,26 +30,117 @@ impl GameStateManager {
         }
     }
 
-    pub fn update(&mut self, rl: &mut RaylibHandle) {
+    pub fn update(&mut self, rl: &mut RaylibHandle, gilrs: &mut Gilrs) {
         match self.current_state {
-            GameState::Welcome => self.update_welcome(rl),
-            GameState::LevelSelect => self.update_level_select(rl),
-            GameState::Victory => self.update_victory(rl),
+            GameState::Welcome => self.update_welcome(rl, gilrs),
+            GameState::LevelSelect => self.update_level_select(rl, gilrs),
+            GameState::Victory => self.update_victory(rl, gilrs),
             _ => {}
         }
     }
 
-    fn update_welcome(&mut self, rl: &mut RaylibHandle) {
+    fn update_welcome(&mut self, rl: &mut RaylibHandle, gilrs: &mut Gilrs) {
+        // Procesar eventos de gamepad
+        while let Some(Event { id, event, time: _ }) = gilrs.next_event() {
+            match event {
+                EventType::ButtonPressed(button, _) => {
+                    match button {
+                        Button::South => { // X en PS4 (Cross) - ACCEPT
+                            self.current_state = GameState::LevelSelect;
+                            return;
+                        },
+                        Button::Start => { // Options en PS4 - MENU
+                            self.current_state = GameState::LevelSelect;
+                            return;
+                        },
+                        _ => {}
+                    }
+                }
+                EventType::Connected => {
+                    println!("🎮 Controller connected: {}", gilrs.gamepad(id).name());
+                }
+                EventType::Disconnected => {
+                    println!("🎮 Controller disconnected");
+                }
+                _ => {}
+            }
+        }
+        
+        // Verificar estado actual de botones - REMOVIDO para evitar doble activación
+        for (_id, gamepad) in gilrs.gamepads() {
+            // Los botones se procesan solo en eventos ButtonPressed arriba
+        }
+        
+        // Controles de teclado
         if rl.is_key_pressed(KeyboardKey::KEY_ENTER) || rl.is_key_pressed(KeyboardKey::KEY_SPACE) {
             self.current_state = GameState::LevelSelect;
         }
     }
 
-    fn update_level_select(&mut self, rl: &mut RaylibHandle) {
+    fn update_level_select(&mut self, rl: &mut RaylibHandle, gilrs: &mut Gilrs) {
+        // Procesar eventos de gamepad
+        while let Some(Event { id: _, event, time: _ }) = gilrs.next_event() {
+            match event {
+                EventType::ButtonPressed(button, _) => {
+                    match button {
+                        Button::DPadLeft => {
+                            if self.selected_level > 0 {
+                                self.selected_level -= 1;
+                                println!("🎮 Level: {}", self.selected_level);
+                            }
+                        },
+                        Button::DPadRight => {
+                            if self.selected_level < 2 {
+                                self.selected_level += 1;
+                                println!("🎮 Level: {}", self.selected_level);
+                            }
+                        },
+                        Button::DPadUp => {
+                            if self.selected_level > 0 {
+                                self.selected_level -= 1;
+                                println!("🎮 Level up: {}", self.selected_level);
+                            }
+                        },
+                        Button::DPadDown => {
+                            if self.selected_level < 2 {
+                                self.selected_level += 1;
+                                println!("🎮 Level down: {}", self.selected_level);
+                            }
+                        },
+                        Button::South => { // X en PS4 - ACCEPT
+                            self.current_state = GameState::Playing;
+                            println!("🎮 Starting game");
+                            return;
+                        },
+                        Button::East => { // Circle en PS4 - BACK
+                            self.current_state = GameState::Welcome;
+                            println!("🎮 Back to menu");
+                            return;
+                        },
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+        
+        // Verificar estado actual de botones solo para navegación continua
+        for (_id, gamepad) in gilrs.gamepads() {
+            // REMOVIDO: No verificar South/East aquí para evitar doble activación
+            // Solo se procesan en los eventos ButtonPressed arriba
+        }
+        
+        // Controles de teclado
         if rl.is_key_pressed(KeyboardKey::KEY_LEFT) && self.selected_level > 0 {
             self.selected_level -= 1;
         }
         if rl.is_key_pressed(KeyboardKey::KEY_RIGHT) && self.selected_level < 2 {
+            self.selected_level += 1;
+        }
+        if rl.is_key_pressed(KeyboardKey::KEY_UP) && self.selected_level > 0 {
+            self.selected_level -= 1;
+        }
+        if rl.is_key_pressed(KeyboardKey::KEY_DOWN) && self.selected_level < 2 {
             self.selected_level += 1;
         }
 
@@ -61,7 +153,41 @@ impl GameStateManager {
         }
     }
 
-    fn update_victory(&mut self, rl: &mut RaylibHandle) {
+    fn update_victory(&mut self, rl: &mut RaylibHandle, gilrs: &mut Gilrs) {
+        // Procesar eventos de gamepad
+        while let Some(Event { id: _, event, time: _ }) = gilrs.next_event() {
+            match event {
+                EventType::ButtonPressed(button, _) => {
+                    match button {
+                        Button::East => { // Circle en PS4 - BACK TO MENU
+                            self.current_state = GameState::Welcome;
+                            return;
+                        },
+                        Button::South => { // X en PS4 - RESTART LEVEL
+                            self.current_state = GameState::Playing;
+                            return;
+                        },
+                        Button::North => { // Triangle en PS4 - RESTART LEVEL
+                            self.current_state = GameState::Playing;
+                            return;
+                        },
+                        Button::Select => { // Share en PS4 - BACK TO MENU
+                            self.current_state = GameState::Welcome;
+                            return;
+                        },
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+        
+        // Verificar estado actual de botones - REMOVIDO para evitar doble activación
+        for (_id, gamepad) in gilrs.gamepads() {
+            // Los botones se procesan solo en eventos ButtonPressed arriba
+        }
+        
+        // Controles de teclado
         if rl.is_key_pressed(KeyboardKey::KEY_ESCAPE) {
             self.current_state = GameState::Welcome;
         }

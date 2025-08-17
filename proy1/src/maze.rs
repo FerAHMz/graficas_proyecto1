@@ -23,59 +23,87 @@ impl Maze {
     }
     
     fn generate_with_python(width: usize, height: usize) -> Result<Self, String> {
-        println!("DEBUG: Ejecutando comando: python3 src/maze.py json {} {}", width, height);
+        // Detectar el sistema operativo para usar el comando Python correcto
+        let python_commands = if cfg!(windows) {
+            vec!["python", "python3", "py"]  // En Windows, intentar python, python3, y py
+        } else {
+            vec!["python3", "python"]  // En Mac/Linux, intentar python3 primero, luego python
+        };
         
-        // Obtener el directorio actual
         let current_dir = std::env::current_dir()
             .map_err(|e| format!("No se pudo obtener directorio actual: {}", e))?;
-        println!("DEBUG: Directorio actual: {:?}", current_dir);
         
-        // Verificar que el archivo existe
         let maze_py_path = current_dir.join("src").join("maze.py");
-        println!("DEBUG: Buscando archivo en: {:?}", maze_py_path);
         
         if !maze_py_path.exists() {
             return Err(format!("El archivo maze.py no existe en: {:?}", maze_py_path));
         }
         
-        // Intentar con timeout usando un approach más simple
-        println!("DEBUG: Ejecutando comando Python...");
-        
-        let mut child = std::process::Command::new("python3")
-            .arg(maze_py_path)
-            .arg("json")
-            .arg(width.to_string())
-            .arg(height.to_string())
-            .current_dir(&current_dir)
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("Error spawning comando: {}", e))?;
-        
-        println!("DEBUG: Proceso Python iniciado, esperando resultado...");
-        
-        // Usar wait en lugar de wait_with_output para simplificar
-        let output = child.wait_with_output()
-            .map_err(|e| format!("Error esperando proceso Python: {}", e))?;
-        
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            return Err(format!("Python script failed with status: {}, stderr: {}, stdout: {}", 
-                              output.status, stderr, stdout));
+        // Intentar cada comando Python hasta que uno funcione
+        for python_cmd in python_commands {
+            println!("DEBUG: Intentando comando: {} src/maze.py json {} {}", python_cmd, width, height);
+            
+            let result = std::process::Command::new(python_cmd)
+                .arg(&maze_py_path)
+                .arg("json")
+                .arg(width.to_string())
+                .arg(height.to_string())
+                .current_dir(&current_dir)
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn();
+            
+            let mut child = match result {
+                Ok(child) => child,
+                Err(e) => {
+                    println!("DEBUG: {} no disponible: {}", python_cmd, e);
+                    continue;  // Intentar el siguiente comando
+                }
+            };
+            
+            println!("DEBUG: Proceso Python iniciado con {}, esperando resultado...", python_cmd);
+            
+            // Usar wait en lugar de wait_with_output para simplificar
+            let output = match child.wait_with_output() {
+                Ok(output) => output,
+                Err(e) => {
+                    println!("DEBUG: Error ejecutando {}: {}", python_cmd, e);
+                    continue;  // Intentar el siguiente comando
+                }
+            };
+            
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                println!("DEBUG: {} falló - status: {}, stderr: {}", python_cmd, output.status, stderr);
+                continue;  // Intentar el siguiente comando
+            }
+            
+            println!("DEBUG: Comando Python ejecutado exitosamente con {}", python_cmd);
+            
+            let json_str = match String::from_utf8(output.stdout) {
+                Ok(s) => s,
+                Err(e) => {
+                    println!("DEBUG: Invalid UTF-8 en output de {}: {}", python_cmd, e);
+                    continue;  // Intentar el siguiente comando
+                }
+            };
+            
+            // Si llegamos aquí, el comando fue exitoso, procesar el resultado
+            return Self::parse_json_maze(&json_str);
         }
         
-        println!("DEBUG: Comando Python ejecutado exitosamente");
-        
-        let json_str = String::from_utf8(output.stdout)
-            .map_err(|e| format!("Invalid UTF-8 in output: {}", e))?;
-        
+        // Si ningún comando Python funcionó
+        Err("No se pudo ejecutar Python con ningún comando disponible (python, python3, py)".to_string())
+    }
+    
+    fn parse_json_maze(json_str: &str) -> Result<Self, String> {
         println!("DEBUG: Respuesta JSON recibida, longitud: {} chars", json_str.len());
         if json_str.len() < 200 {
             println!("DEBUG: JSON content preview: {}", json_str);
         }
         
-        let parsed: Vec<Vec<String>> = serde_json::from_str(&json_str)
+        let parsed: Vec<Vec<String>> = serde_json::from_str(json_str)
             .map_err(|e| format!("Failed to parse JSON: {}", e))?;
         
         // Convertir String a char
