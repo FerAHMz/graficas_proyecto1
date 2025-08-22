@@ -16,7 +16,7 @@ impl TextureManager {
         let mut textures = HashMap::new();
         
         // Cargar imagen de pared y crear texturas
-        let wall_texture = Self::load_texture_from_path(rl, thread, "assets/img/iloveimg-converted/wall2.jpg");
+        let wall_texture = Self::load_texture_from_path(rl, thread, "assets/img/wall2.jpg");
         
         // Asignar la misma textura a todos los tipos de pared
         if let Some(texture) = wall_texture {
@@ -30,16 +30,16 @@ impl TextureManager {
         if let Some(wall_tex) = textures.get(&'+') {
             // Como no podemos clonar Texture2D directamente, usamos la misma textura para todas
             // o cargamos la misma imagen múltiples veces
-            let wall_texture2 = Self::load_texture_from_path(rl, thread, "assets/img/iloveimg-converted/wall2.jpg");
-            let wall_texture3 = Self::load_texture_from_path(rl, thread, "assets/img/iloveimg-converted/wall2.jpg");
+            let wall_texture2 = Self::load_texture_from_path(rl, thread, "assets/img/wall2.jpg");
+            let wall_texture3 = Self::load_texture_from_path(rl, thread, "assets/img/wall2.jpg");
             
             textures.insert('-', wall_texture2.unwrap_or_else(|| Self::create_color_texture(rl, thread, Color::DARKBROWN, 64, 64)));
             textures.insert('|', wall_texture3.unwrap_or_else(|| Self::create_color_texture(rl, thread, Color::GRAY, 64, 64)));
         }
         
         // Cargar texturas para cielo y piso
-        let sky_texture = Self::load_texture_from_path(rl, thread, "assets/img/iloveimg-converted/wall1.jpg");
-        let floor_texture = Self::load_texture_from_path(rl, thread, "assets/img/iloveimg-converted/wall3.jpg");
+        let sky_texture = Self::load_texture_from_path(rl, thread, "assets/img/wall1.jpg");
+        let floor_texture = Self::load_texture_from_path(rl, thread, "assets/img/wall3.jpg");
         
         let mut manager = TextureManager { 
             textures,
@@ -76,7 +76,7 @@ impl TextureManager {
     
     fn create_texture_caches_from_images(&mut self, rl: &mut RaylibHandle, thread: &RaylibThread) {
         // Crear cache para textura de pared desde la imagen real
-        match Image::load_image("assets/img/iloveimg-converted/wall2.jpg") {
+        match Image::load_image("assets/img/wall2.jpg") {
             Ok(wall_image) => {
                 println!("Creando cache de textura de pared desde wall2.jpg");
                 self.wall_texture_cache = Some(Self::create_pixel_cache(&wall_image));
@@ -104,7 +104,7 @@ impl TextureManager {
         }
         
         // Crear cache para textura de piso desde la imagen real
-        match Image::load_image("assets/img/iloveimg-converted/wall3.jpg") {
+        match Image::load_image("assets/img/wall3.jpg") {
             Ok(floor_image) => {
                 println!("Creando cache de textura de piso desde wall3.jpg");
                 self.floor_texture_cache = Some(Self::create_pixel_cache(&floor_image));
@@ -132,7 +132,7 @@ impl TextureManager {
         }
         
         // Crear cache para textura de cielo desde la imagen real
-        match Image::load_image("assets/img/iloveimg-converted/wall1.jpg") {
+        match Image::load_image("assets/img/wall1.jpg") {
             Ok(sky_image) => {
                 println!("Creando cache de textura de cielo desde wall1.jpg");
                 self.sky_texture_cache = Some(Self::create_pixel_cache(&sky_image));
