@@ -221,50 +221,64 @@ pub fn render_3d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<
         let stake_top = (hh - (stake_height / 2.0)) as usize;
         let stake_bottom = (hh + (stake_height / 2.0)) as usize;
 
-        // Set color based on wall type
-        let wall_color = match intersect.impact {
-            '+' => Color::BROWN,
-            '-' => Color::GRAY,
-            '|' => Color::DARKGRAY,
-            _ => Color::WHITE,
-        };
-
-        // Apply distance shading
-        let intensity = 1.0 / (1.0 + distance_to_wall * distance_to_wall * 0.0001);
-        let intensity = intensity.min(1.0).max(0.1);
-        
-        let shaded_color = Color::new(
-            (wall_color.r as f32 * intensity) as u8,
-            (wall_color.g as f32 * intensity) as u8,
-            (wall_color.b as f32 * intensity) as u8,
-            255
-        );
-
-        framebuffer.set_current_color(shaded_color);
-
-        // Draw the wall column
+        // Draw the wall column with texture
         for y in stake_top..stake_bottom.min(framebuffer.height as usize) {
+            // Calculate texture coordinates
+            let wall_height = stake_bottom - stake_top;
+            let ty = if wall_height > 0 {
+                ((y - stake_top) as f32 / wall_height as f32).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            
+            // Get wall color from texture
+            let wall_color = match intersect.impact {
+                '+' | '-' | '|' => {
+                    // Use wall texture with proper coordinates
+                    let safe_tx = intersect.tx.clamp(0.0, 1.0);
+                    texture_manager.get_wall_texture_pixel(safe_tx, ty)
+                },
+                _ => {
+                    // Fallback for non-wall cells
+                    match intersect.impact {
+                        'g' => Color::GOLD,
+                        's' => Color::LIME,
+                        _ => Color::WHITE,
+                    }
+                }
+            };
+
+            // Apply distance shading
+            let intensity = 1.0 / (1.0 + distance_to_wall * distance_to_wall * 0.0001);
+            let intensity = intensity.min(1.0).max(0.3); // Keep minimum visibility
+            
+            let shaded_color = Color::new(
+                (wall_color.r as f32 * intensity) as u8,
+                (wall_color.g as f32 * intensity) as u8,
+                (wall_color.b as f32 * intensity) as u8,
+                255
+            );
+
+            framebuffer.set_current_color(shaded_color);
             framebuffer.set_pixel(i, y as u32);
         }
 
-        // Draw Pokemon-themed sky
+        // Draw sky with texture
         for y in 0..stake_top {
-            let sky_color = if texture_manager.sky_texture.is_some() {
-                get_pokemon_sky_color(i, y as u32)
-            } else {
-                Color::new(135, 206, 235, 255) // Fallback sky blue
-            };
+            let sky_u = i as f32 / framebuffer.width as f32;
+            let sky_v = y as f32 / stake_top.max(1) as f32;
+            
+            let sky_color = texture_manager.get_sky_texture_pixel(sky_u, sky_v);
             framebuffer.set_current_color(sky_color);
             framebuffer.set_pixel(i, y as u32);
         }
 
-        // Draw Pokemon-themed floor
+        // Draw floor with texture
         for y in stake_bottom..framebuffer.height as usize {
-            let floor_color = if texture_manager.floor_texture.is_some() {
-                get_pokemon_floor_color(i, y as u32)
-            } else {
-                Color::new(34, 139, 34, 255) // Fallback green grass
-            };
+            let floor_u = i as f32 / framebuffer.width as f32;
+            let floor_v = (y - stake_bottom) as f32 / (framebuffer.height as usize - stake_bottom).max(1) as f32;
+            
+            let floor_color = texture_manager.get_floor_texture_pixel(floor_u, floor_v);
             framebuffer.set_current_color(floor_color);
             framebuffer.set_pixel(i, y as u32);
         }
