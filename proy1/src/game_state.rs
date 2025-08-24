@@ -30,6 +30,26 @@ impl GameStateManager {
         }
     }
 
+    // Obtener el tamaño del laberinto según el nivel seleccionado
+    pub fn get_maze_size(&self) -> (usize, usize) {
+        match self.selected_level {
+            0 => (4, 4),   // Fácil: 4x4
+            1 => (8, 8),   // Medio: 8x8  
+            2 => (12, 12), // Difícil: 12x12
+            _ => (8, 8),   // Por defecto: 8x8
+        }
+    }
+
+    // Obtener información del nivel actual
+    pub fn get_level_info(&self) -> (&str, &str, &str) {
+        match self.selected_level {
+            0 => ("Centro Pokémon", "Un laberinto básico para entrenadores novatos", "⭐ FÁCIL"),
+            1 => ("Cueva Oscura", "Laberinto medio con obstáculos adicionales", "⭐⭐ MEDIO"),
+            2 => ("Torre Victoria", "El desafío final para maestros Pokémon", "⭐⭐⭐ DIFÍCIL"),
+            _ => ("Cueva Oscura", "Laberinto medio con obstáculos adicionales", "⭐⭐ MEDIO"),
+        }
+    }
+
     pub fn update(&mut self, rl: &mut RaylibHandle, gilrs: &mut Gilrs) {
         match self.current_state {
             GameState::Welcome => self.update_welcome(rl, gilrs),
@@ -213,11 +233,11 @@ impl GameStateManager {
         self.draw_background(d, Color::new(25, 42, 86, 255));
         self.draw_title(d, "SELECCIONAR REGIÓN", 252, 102, 32, Color::BLACK, Color::new(255, 204, 51, 255));
 
-        let levels = ["Centro Pokémon", "Cueva Oscura", "Torre Victoria"];
+        let levels = ["Centro Pokémon (4x4)", "Cueva Oscura (8x8)", "Torre Victoria (12x12)"];
         let descriptions = [
-            "Un laberinto básico para entrenadores novatos",
-            "Laberinto medio con obstáculos adicionales",
-            "El desafío final para maestros Pokémon",
+            "Un laberinto básico para entrenadores novatos - Pequeño y manejable",
+            "Laberinto medio con obstáculos adicionales - Tamaño estándar",
+            "El desafío final para maestros Pokémon - Extenso y complejo",
         ];
         let difficulties = ["⭐ FÁCIL", "⭐⭐ MEDIO", "⭐⭐⭐ DIFÍCIL"];
 

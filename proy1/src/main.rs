@@ -65,12 +65,16 @@ fn main() {
         println!("✅ {} controller(s) ready", gamepad_count);
     }
     
-    let maze_obj = Maze::new(8, 6);
-    let maze = &maze_obj.map;
+    // Initialize game state manager first
+    let mut game_state_manager = GameStateManager::new();
     
-    // Create player at a safe starting position for 8x6 maze
+    // Create initial maze with default size (will be recreated when starting game)
+    let mut maze_obj = Maze::new(8, 6);
+    let mut maze = &maze_obj.map;
+    
+    // Create player at a safe starting position
     let mut player = Player {
-        pos: Vector2::new(25.0, 25.0), // Position adjusted for BLOCK_SIZE = 20 (1.25, 1.25 in maze coordinates)
+        pos: Vector2::new(25.0, 25.0), // Will be reset when maze is recreated
         a: PI / 4.0,
         fov: PI / 3.0,
     };
@@ -78,9 +82,10 @@ fn main() {
     let texture_manager = TextureManager::new(&mut rl, &thread);
     let mut mode_3d = true;
     let mut mouse_enabled = true; // Track mouse control state
-    let mut game_state_manager = GameStateManager::new();
     let mut frame_counter_since_playing = 0u32; // Counter for frames since entering Playing state
     let mut previous_state = GameState::Welcome; // Track previous state for transitions
+    let mut last_selected_level = game_state_manager.selected_level; // Track level changes
+    let mut maze_needs_recreation = false; // Flag to recreate maze when level changes
     
     // Inicializar sistema de audio con Taylor Swift
     let mut audio_manager = match AudioManager::new() {
@@ -128,6 +133,31 @@ fn main() {
         
         // Update game state
         game_state_manager.update(&mut rl, &mut gilrs);
+        
+        // Check if level selection changed
+        if last_selected_level != game_state_manager.selected_level {
+            last_selected_level = game_state_manager.selected_level;
+            maze_needs_recreation = true;
+            let (width, height) = game_state_manager.get_maze_size();
+            let (name, desc, diff) = game_state_manager.get_level_info();
+            println!("🎯 Nivel cambiado a: {} - {} ({}x{})", name, diff, width, height);
+        }
+        
+        // Recreate maze if needed (when starting to play or level changed)
+        if game_state_manager.current_state == GameState::Playing &&
+            (previous_state != GameState::Playing || maze_needs_recreation) {
+            let (width, height) = game_state_manager.get_maze_size();
+            println!("🗺️ Creando nuevo laberinto {}x{}", width, height);
+            maze_obj = Maze::new(width, height);
+            maze = &maze_obj.map;
+            
+            // Reset player to starting position
+            player.pos = Vector2::new(25.0, 25.0);
+            player.a = PI / 4.0;
+            
+            maze_needs_recreation = false;
+            println!("✅ Laberinto recreado exitosamente");
+        }
         
         // Check for state transitions and reset player position when leaving Victory state
         if previous_state == GameState::Victory && game_state_manager.current_state != GameState::Victory {
